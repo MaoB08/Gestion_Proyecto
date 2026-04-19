@@ -13,11 +13,18 @@ const gradeRoutes    = require('./routes/gradeRoutes');
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ origin: process.env.CORS_ORIGIN || 'http://localhost:5173' }));
+app.use(cors({ 
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  exposedHeaders: ['X-DB-Optimization']
+}));
 app.use(express.json());
 
-// Serve static uploaded files
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
+
+// ── Root route ───────────────────────────────────────────────────────────────
+app.get('/', (_req, res) => {
+  res.json({ message: 'ClassAI Backend API is running', documentation: '/api/health' });
+});
 
 // ── Rutas ────────────────────────────────────────────────────────────────
 app.use('/api/auth',     authRoutes);

@@ -40,6 +40,9 @@ const GradeSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
+// Explicit index for filtering grades by student (Performance)
+GradeSchema.index({ studentId: 1 });
+
 // Ensure a student only has one grade per activity in a course
 GradeSchema.index({ studentId: 1, courseId: 1, contentId: 1 }, { unique: true });
 

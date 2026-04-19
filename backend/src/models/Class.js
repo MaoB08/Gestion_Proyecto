@@ -43,4 +43,7 @@ const ClassSchema = new mongoose.Schema({
   createdAt:          { type: Date, default: Date.now },
 });
 
+// Explicit index for filtering classes by course (Performance)
+ClassSchema.index({ courseId: 1 });
+
 module.exports = mongoose.model('Class', ClassSchema);

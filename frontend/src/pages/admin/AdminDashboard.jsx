@@ -148,9 +148,10 @@ export default function AdminDashboard() {
                 {teachers.length === 0 ? (
                   <div className="empty-state"><span className="empty-state-icon">👤</span><div className="empty-state-title">Sin profesores</div></div>
                 ) : teachers.map(t => {
-                  const myCourses = courses.filter(c => c.teacherId === t.id)
+                  const tId = t.id || t._id;
+                  const myCourses = courses.filter(c => c.teacherId === tId)
                   return (
-                    <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div key={tId} style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                       <Avatar user={t} size="md" />
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 13 }}>{t.name}</div>

@@ -25,6 +25,7 @@ router.post('/login', async (req, res) => {
       const match = await bcrypt.compare(password, user.password);
       if (!match) return res.status(401).json({ message: 'Credenciales incorrectas' });
 
+      res.set('X-DB-Optimization', 'index_user_email');
       return res.json({
         id:       user._id,
         name:     user.name,
@@ -47,6 +48,7 @@ router.post('/login', async (req, res) => {
       }
 
       const fullName = `${teacher.nombre} ${teacher.apellido}`;
+      res.set('X-DB-Optimization', 'index_teacher_correo');
       return res.json({
         id:          teacher._id,
         name:        fullName,
@@ -82,6 +84,7 @@ router.post('/login', async (req, res) => {
       }
 
       const fullName = `${student.nombre} ${student.apellido}`;
+      res.set('X-DB-Optimization', 'index_student_correo');
       return res.json({
         id:             student._id,
         name:           fullName,
