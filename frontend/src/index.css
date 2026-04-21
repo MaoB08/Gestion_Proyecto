@@ -1069,3 +1069,389 @@ a { color: inherit; text-decoration: none; }
 .text-sm { font-size: 12px; }
 .text-muted { color: var(--text-muted); }
 .text-primary-color { color: var(--primary); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ATTENTION CHECK — RF-11
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* Student Overlay */
+.attention-overlay {
+  position: fixed; inset: 0;
+  background: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(8px);
+  z-index: 2000;
+  display: flex; align-items: center; justify-content: center;
+  animation: attentionFadeIn 0.3s ease;
+}
+
+.attention-modal {
+  background: white;
+  border-radius: var(--radius-xl);
+  padding: 40px 36px;
+  max-width: 400px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 25px 60px rgba(124, 58, 237, 0.3);
+  animation: attentionBounceIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.attention-modal::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary), #EC4899, var(--primary));
+  background-size: 200% 100%;
+  animation: attentionGradient 2s linear infinite;
+}
+
+.attention-icon {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), #EC4899);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px;
+  margin: 0 auto 20px;
+  animation: attentionPulse 1.5s ease-in-out infinite;
+  box-shadow: 0 8px 30px rgba(124, 58, 237, 0.35);
+}
+
+.attention-title {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.attention-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+/* Countdown Circle */
+.attention-countdown-wrap {
+  position: relative;
+  width: 100px; height: 100px;
+  margin: 0 auto 24px;
+}
+
+.attention-countdown-svg {
+  width: 100px; height: 100px;
+  transform: rotate(-90deg);
+}
+
+.attention-countdown-bg {
+  fill: none;
+  stroke: #E5E7EB;
+  stroke-width: 5;
+}
+
+.attention-countdown-progress {
+  fill: none;
+  stroke: var(--primary);
+  stroke-width: 5;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear;
+}
+
+.attention-countdown-progress.warning { stroke: var(--warning); }
+.attention-countdown-progress.danger  { stroke: var(--danger); }
+
+.attention-countdown-text {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.attention-countdown-text.warning { color: var(--warning); }
+.attention-countdown-text.danger  { color: var(--danger); animation: attentionPulse 0.5s ease-in-out infinite; }
+
+/* Response Button */
+.attention-respond-btn {
+  width: 100%;
+  padding: 16px 24px;
+  border: none;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--primary), #7C3AED);
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+}
+
+.attention-respond-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 32px rgba(124, 58, 237, 0.45);
+}
+
+.attention-respond-btn:active {
+  transform: translateY(0);
+}
+
+/* Teacher Launch Button */
+.attention-launch-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.attention-launch-btn::after {
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 0; height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.3);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.attention-launch-btn:active::after {
+  width: 200px; height: 200px;
+}
+
+/* Teacher Results Panel */
+.attention-results-panel {
+  background: white;
+  border: 2px solid var(--primary-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  animation: fadeIn 0.3s ease;
+  margin-bottom: 12px;
+}
+
+.attention-results-header {
+  padding: 14px 18px;
+  background: linear-gradient(135deg, var(--primary-bg), #FCE7F3);
+  border-bottom: 1px solid var(--primary-border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.attention-results-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--primary);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.attention-results-body {
+  padding: 14px 18px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* Progress bar for attention */
+.attention-progress {
+  height: 8px;
+  background: #E5E7EB;
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  margin: 10px 0 14px;
+}
+
+.attention-progress-fill {
+  height: 100%;
+  border-radius: var(--radius-full);
+  background: linear-gradient(90deg, var(--primary), #EC4899);
+  transition: width 0.5s ease;
+}
+
+/* Student response rows - ranking */
+.attention-student-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.attention-student-row:hover {
+  background: var(--bg-page);
+}
+
+.attention-student-row.responded {
+  background: #F0FDF4;
+  border-color: #BBF7D0;
+}
+
+.attention-student-row.not-responded {
+  background: #FEF2F2;
+  border-color: #FECACA;
+  opacity: 0.8;
+}
+
+.attention-rank {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 800;
+  flex-shrink: 0;
+}
+
+.attention-rank.gold   { background: #FEF3C7; color: #D97706; }
+.attention-rank.silver { background: #F3F4F6; color: #6B7280; }
+.attention-rank.bronze { background: #FED7AA; color: #C2410C; }
+.attention-rank.normal { background: #E5E7EB; color: #6B7280; }
+.attention-rank.fail   { background: #FEE2E2; color: var(--danger); font-size: 14px; }
+
+.attention-student-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.attention-student-name {
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.attention-response-time {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.attention-response-time.fast {
+  background: #DEF7EC;
+  color: #03543F;
+}
+
+.attention-response-time.medium {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.attention-response-time.slow {
+  background: #FDE8E8;
+  color: #9B1C1C;
+}
+
+.attention-response-time.timeout {
+  background: #FEE2E2;
+  color: var(--danger);
+}
+
+/* Stats bar */
+.attention-stats {
+  display: flex;
+  gap: 16px;
+  padding: 10px 0;
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+}
+
+.attention-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+}
+
+.attention-stat-value {
+  font-size: 20px;
+  font-weight: 800;
+}
+
+.attention-stat-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+/* History chip */
+.attention-history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--bg-page);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 6px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.attention-history-item:hover {
+  border-color: var(--primary-border);
+  background: var(--primary-bg);
+}
+
+/* Toast for student response */
+.attention-toast {
+  position: fixed;
+  top: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 14px 28px;
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  font-weight: 700;
+  z-index: 3000;
+  animation: attentionToastIn 0.3s ease, attentionToastOut 0.3s ease 2.7s forwards;
+  box-shadow: var(--shadow-lg);
+}
+
+.attention-toast.success {
+  background: linear-gradient(135deg, #059669, #10B981);
+  color: white;
+}
+
+.attention-toast.fail {
+  background: linear-gradient(135deg, #DC2626, #EF4444);
+  color: white;
+}
+
+/* Animations */
+@keyframes attentionFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes attentionBounceIn {
+  from { opacity: 0; transform: scale(0.85) translateY(20px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes attentionPulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.08); }
+}
+
+@keyframes attentionGradient {
+  0%   { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+@keyframes attentionToastIn {
+  from { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+@keyframes attentionToastOut {
+  from { opacity: 1; transform: translateX(-50%) translateY(0); }
+  to   { opacity: 0; transform: translateX(-50%) translateY(-20px); }
+}
+

@@ -15,6 +15,7 @@ export default function ClassroomStudent({ classId }) {
     currentUser, users, courses,
     getClassById, getCourseById,
     sendQuestion, leaveClass, setActivePage, setActiveClassId,
+    respondAttentionCheck,
   } = useApp()
 
   // Poll for live updates every 2s
@@ -29,6 +30,11 @@ export default function ClassroomStudent({ classId }) {
   const [isAIActive, setIsAIActive] = useState(false)
   const [aiLoading, setAiLoading]   = useState(false)
   const chatEndRef = useRef(null)
+
+  // Attention check state
+  const [acRespondedIds, setAcRespondedIds] = useState(new Set())
+  const [acToast, setAcToast]               = useState(null)
+  const [acCountdown, setAcCountdown]       = useState(0)
 
   // Auto-scroll chat
   useEffect(() => {
@@ -55,6 +61,45 @@ export default function ClassroomStudent({ classId }) {
       setActivePage('dashboard')
     }
   }, [cls?.isActive, setActiveClassId, setActivePage])
+
+  // RF-11: Detect active attention check
+  const activeCheck = (cls?.attentionChecks || []).find(ac => ac.status === 'active')
+  const myCheckId = activeCheck ? (activeCheck._id || activeCheck.id) : null
+  const myResponse = activeCheck?.responses?.find(r => String(r.userId) === String(currentUser?.id))
+  const showCheckOverlay = activeCheck && myResponse && !myResponse.responded && !acRespondedIds.has(myCheckId)
+
+  // Countdown timer for attention check
+  useEffect(() => {
+    if (!showCheckOverlay || !activeCheck) return
+    const launched = new Date(activeCheck.launchedAt).getTime()
+    const timeout = (activeCheck.timeoutSecs || 30) * 1000
+
+    const tick = () => {
+      const remaining = Math.max(0, (launched + timeout - Date.now()) / 1000)
+      setAcCountdown(remaining)
+      if (remaining <= 0) {
+        setAcRespondedIds(prev => new Set(prev).add(myCheckId))
+        setAcToast({ type: 'fail', text: '❌ No respondiste a tiempo' })
+        setTimeout(() => setAcToast(null), 3000)
+      }
+    }
+
+    tick()
+    const interval = setInterval(tick, 1000)
+    return () => clearInterval(interval)
+  }, [showCheckOverlay, activeCheck, myCheckId])
+
+  const handleRespondCheck = async () => {
+    if (!activeCheck || !myCheckId) return
+    setAcRespondedIds(prev => new Set(prev).add(myCheckId))
+    const res = await respondAttentionCheck(classId, myCheckId, currentUser.id)
+    if (res.success) {
+      setAcToast({ type: 'success', text: '✅ ¡Atención confirmada!' })
+    } else {
+      setAcToast({ type: 'fail', text: res.error || '❌ Error al responder' })
+    }
+    setTimeout(() => setAcToast(null), 3000)
+  }
 
   const fmt = (s) => `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`
 
@@ -310,6 +355,51 @@ export default function ClassroomStudent({ classId }) {
           </div>
         </div>
       </div>
+
+      {/* RF-11: Attention Check Overlay */}
+      {showCheckOverlay && (() => {
+        const timeout = activeCheck.timeoutSecs || 30
+        const circumference = 2 * Math.PI * 45
+        const offset = circumference * (1 - acCountdown / timeout)
+        const colorClass = acCountdown <= 5 ? 'danger' : acCountdown <= 10 ? 'warning' : ''
+        return (
+          <div className="attention-overlay">
+            <div className="attention-modal">
+              <div className="attention-icon">🎯</div>
+              <div className="attention-title">¡Verificación de Atención!</div>
+              <div className="attention-subtitle">
+                Tu profesor quiere saber si estás atento. ¡Responde rápido!
+              </div>
+
+              <div className="attention-countdown-wrap">
+                <svg className="attention-countdown-svg" viewBox="0 0 100 100">
+                  <circle className="attention-countdown-bg" cx="50" cy="50" r="45" />
+                  <circle
+                    className={`attention-countdown-progress ${colorClass}`}
+                    cx="50" cy="50" r="45"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
+                  />
+                </svg>
+                <div className={`attention-countdown-text ${colorClass}`}>
+                  {Math.ceil(acCountdown)}
+                </div>
+              </div>
+
+              <button className="attention-respond-btn" onClick={handleRespondCheck}>
+                ✋ ¡Estoy Aquí!
+              </button>
+            </div>
+          </div>
+        )
+      })()}
+
+      {/* Attention Toast */}
+      {acToast && (
+        <div className={`attention-toast ${acToast.type}`}>
+          {acToast.text}
+        </div>
+      )}
     </div>
   )
 }

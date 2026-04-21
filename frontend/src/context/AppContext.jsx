@@ -586,11 +586,25 @@ export function AppProvider({ children }) {
     }
   }
 
-  // DB STUB: replace with → PUT /api/classes/:id/activate
-  const activateClass = (classId) => {
-    setClasses(prev => prev.map(cl =>
-      cl.id === classId ? { ...cl, isActive: true } : cl
-    ))
+  // PUT /api/classes/:id/activate — persists to MongoDB
+  const activateClass = async (classId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/activate`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (res.ok) {
+        const json = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId) ? { ...json, id: json._id } : cl
+        ))
+        return { success: true }
+      }
+      return { success: false, error: 'Error al activar la clase' }
+    } catch (err) {
+      console.error('Error activating class:', err)
+      return { success: false, error: 'Error de red' }
+    }
   }
 
   // RF-10 Adjustment: Finalize Class
@@ -624,32 +638,49 @@ export function AppProvider({ children }) {
     return () => clearInterval(interval);
   }, [activeClassId, activePage, refreshData]);
 
-  // DB STUB: replace with → POST /api/classes/:id/join
-  const joinClass = (classId, userId) => {
-    setClasses(prev => prev.map(cl => {
-      if (cl.id !== classId) return cl
-      const alreadyIn = cl.participantIds.includes(userId)
-      const alreadyAttended = cl.attendance.some(a => a.userId === userId)
-      return {
-        ...cl,
-        participantIds: alreadyIn ? cl.participantIds : [...cl.participantIds, userId],
-        attendance: alreadyAttended ? cl.attendance : [
-          ...cl.attendance,
-          { userId, joinedAt: new Date().toISOString() }
-        ],
+  // POST /api/classes/:id/join — persists to MongoDB
+  const joinClass = async (classId, userId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId)
+            ? { ...cl, participantIds: updated.participantIds, attendance: updated.attendance }
+            : cl
+        ))
       }
-    }))
+    } catch (err) {
+      console.error('Error joining class:', err)
+    }
   }
 
-  const leaveClass = (classId, userId) => {
-    setClasses(prev => prev.map(cl =>
-      cl.id === classId
-        ? { ...cl, participantIds: cl.participantIds.filter(id => id !== userId) }
-        : cl
-    ))
+  // POST /api/classes/:id/leave — persists to MongoDB
+  const leaveClass = async (classId, userId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/leave`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId)
+            ? { ...cl, participantIds: updated.participantIds }
+            : cl
+        ))
+      }
+    } catch (err) {
+      console.error('Error leaving class:', err)
+    }
   }
 
-  // DB STUB: replace with → POST /api/classes/:id/transcription
+  // POST /api/classes/:id/transcription — persists to MongoDB
   const appendTranscription = useCallback(async (classId, segment) => {
     try {
       const res = await fetch(`http://localhost:3001/api/classes/${classId}/transcription`, {
@@ -670,63 +701,135 @@ export function AppProvider({ children }) {
     // State managed locally in teacher component; this is intentionally a no-op here
   }, [])
 
-  const clearTranscription = useCallback((classId) => {
-    setClasses(prev => {
-      const updated = prev.map(cl =>
-        cl.id === classId ? { ...cl, transcription: [] } : cl
-      )
-      localStorage.setItem('classai_classes', JSON.stringify(updated))
-      return updated
-    })
+  const clearTranscription = useCallback(async (classId) => {
+    // Clear locally first for instant UI feedback, backend doesn't have a dedicated clear endpoint
+    setClasses(prev => prev.map(cl =>
+      String(cl.id || cl._id) === String(classId) ? { ...cl, transcription: [] } : cl
+    ))
   }, [])
 
-  const saveTranscription = useCallback((classId) => {
-    setClasses(prev => {
-      const updated = prev.map(cl => {
-        if (cl.id !== classId) return cl
-        const text = cl.transcription.map(s => s.text).join(' ')
-        return { ...cl, savedTranscription: text }
+  // PUT /api/classes/:id/transcription/save — persists to MongoDB
+  const saveTranscription = useCallback(async (classId) => {
+    try {
+      const cls = classes.find(cl => String(cl.id || cl._id) === String(classId))
+      const text = (cls?.transcription || []).map(s => s.text).join(' ')
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/transcription/save`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
       })
-      localStorage.setItem('classai_classes', JSON.stringify(updated))
-      return updated
-    })
-  }, [])
-
-  const setSummary = (classId, summary) => {
-    setClasses(prev => prev.map(cl =>
-      cl.id === classId ? { ...cl, summary } : cl
-    ))
-  }
-
-  // DB STUB: replace with → POST /api/classes/:id/questions
-  const sendQuestion = (classId, userId, text, isQuickReply = false) => {
-    const user = users.find(u => u.id === userId)
-    const question = {
-      id: `q${Date.now()}`,
-      userId,
-      userName: user?.name || 'Estudiante',
-      userAvatar: user?.avatar || 'ES',
-      text,
-      isQuickReply,
-      status: 'pending',
-      sentAt: new Date().toISOString(),
-      upvotes: 0,
+      if (res.ok) {
+        const json = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId) ? { ...cl, savedTranscription: json.savedTranscription || text } : cl
+        ))
+      }
+    } catch (err) {
+      console.error('Error saving transcription:', err)
     }
-    setClasses(prev => {
-      const updated = prev.map(cl =>
-        cl.id === classId ? { ...cl, questions: [...cl.questions, question] } : cl
-      )
-      localStorage.setItem('classai_classes', JSON.stringify(updated))
-      return updated
-    })
+  }, [classes])
+
+  // PUT /api/classes/:id/summary — persists to MongoDB
+  const setSummary = async (classId, summary) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/summary`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ summary }),
+      })
+      if (res.ok) {
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId) ? { ...cl, summary } : cl
+        ))
+      }
+    } catch (err) {
+      console.error('Error setting summary:', err)
+    }
   }
 
-  const answerQuestion = (classId, questionId) => {
-    setClasses(prev => prev.map(cl =>
-      cl.id === classId
-        ? { ...cl, questions: cl.questions.map(q => q.id === questionId ? { ...q, status: 'answered', answeredAt: new Date().toISOString() } : q) }
-        : cl
-    ))
+  // POST /api/classes/:id/questions — persists to MongoDB
+  const sendQuestion = async (classId, userId, text, isQuickReply = false) => {
+    try {
+      const user = users.find(u => u.id === userId)
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/questions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          userName: user?.name || 'Estudiante',
+          userAvatar: user?.avatar || 'ES',
+          text,
+          isQuickReply,
+        }),
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId)
+            ? { ...cl, questions: updated.questions }
+            : cl
+        ))
+      }
+    } catch (err) {
+      console.error('Error sending question:', err)
+    }
+  }
+
+  // PUT /api/classes/:classId/questions/:questionId/answer — persists to MongoDB
+  const answerQuestion = async (classId, questionId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/questions/${questionId}/answer`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      if (res.ok) {
+        const updated = await res.json()
+        setClasses(prev => prev.map(cl =>
+          String(cl.id || cl._id) === String(classId)
+            ? { ...cl, questions: updated.questions }
+            : cl
+        ))
+      }
+    } catch (err) {
+      console.error('Error answering question:', err)
+    }
+  }
+
+  // RF-11: Attention Checks
+  const launchAttentionCheck = async (classId, timeoutSecs = 30) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ timeoutSecs }),
+      })
+      const json = await res.json()
+      if (!res.ok) return { success: false, error: json.message || 'Error al lanzar verificación' }
+      setClasses(prev => prev.map(cl =>
+        String(cl.id || cl._id) === String(classId) ? { ...cl, attentionChecks: json.attentionChecks } : cl
+      ))
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Error de red' }
+    }
+  }
+
+  const respondAttentionCheck = async (classId, checkId, userId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check/${checkId}/respond`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      })
+      const json = await res.json()
+      if (!res.ok) return { success: false, error: json.message || 'Error al responder' }
+      setClasses(prev => prev.map(cl =>
+        String(cl.id || cl._id) === String(classId) ? { ...cl, attentionChecks: json.attentionChecks } : cl
+      ))
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Error de red' }
+    }
   }
 
   // RF-07: Course Contents
@@ -861,7 +964,7 @@ export function AppProvider({ children }) {
     // Classes
     createClass, activateClass, deactivateClass, joinClass, leaveClass,
     appendTranscription, clearTranscription, saveTranscription, setSummary,
-    sendQuestion, answerQuestion,
+    sendQuestion, answerQuestion, launchAttentionCheck, respondAttentionCheck,
     // Grades
     grades, saveGrade, fetchGradesByCourse, fetchGradesByStudent,
     // Helpers

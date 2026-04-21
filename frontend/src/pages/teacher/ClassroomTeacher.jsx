@@ -11,6 +11,7 @@ export default function ClassroomTeacher({ classId }) {
     getClassById, getCourseById,
     appendTranscription, clearTranscription, saveTranscription, setSummary,
     answerQuestion, deactivateClass, setActivePage, setActiveClassId,
+    launchAttentionCheck,
   } = useApp()
 
   const cls    = getClassById(classId)
@@ -37,6 +38,65 @@ export default function ClassroomTeacher({ classId }) {
 
   // Questions tab
   const [qTab, setQTab]  = useState('pending')
+
+  // Attention check
+  const [acLoading, setAcLoading]   = useState(false)
+  const [viewCheckId, setViewCheckId] = useState(null)
+
+  // Participants (used by attention check handler, must be defined before)
+  const participants = (cls?.participantIds || []).map(id => users.find(u => u.id === id || u._id === id)).filter(Boolean)
+
+  // Derive active attention check from class data
+  const activeCheck = (cls?.attentionChecks || []).find(ac => ac.status === 'active')
+  const checkHistory = (cls?.attentionChecks || []).filter(ac => ac.status === 'completed').reverse()
+  const displayCheck = viewCheckId 
+    ? (cls?.attentionChecks || []).find(ac => (ac._id || ac.id) === viewCheckId) 
+    : activeCheck
+
+  // Auto-complete timer for active check
+  useEffect(() => {
+    if (!activeCheck) return
+    const launched = new Date(activeCheck.launchedAt).getTime()
+    const timeout = (activeCheck.timeoutSecs || 30) * 1000
+    const remaining = (launched + timeout) - Date.now()
+    if (remaining <= 0) return
+    const timer = setTimeout(() => {
+      // Force refresh to pick up completed status
+    }, remaining + 1000)
+    return () => clearTimeout(timer)
+  }, [activeCheck])
+
+  const handleLaunchCheck = async () => {
+    if (acLoading) return
+    if (participants.length === 0) { alert('No hay estudiantes conectados para verificar.'); return }
+    setAcLoading(true)
+    setViewCheckId(null)
+    const res = await launchAttentionCheck(classId)
+    setAcLoading(false)
+    if (!res.success) alert(res.error)
+  }
+
+  // Helper: format response time
+  const fmtResponseTime = (check, response) => {
+    if (!response.responded || !response.respondedAt) return null
+    const launched = new Date(check.launchedAt).getTime()
+    const responded = new Date(response.respondedAt).getTime()
+    const secs = (responded - launched) / 1000
+    return secs.toFixed(1)
+  }
+
+  const getTimeClass = (secs) => {
+    if (secs <= 5) return 'fast'
+    if (secs <= 15) return 'medium'
+    return 'slow'
+  }
+
+  const getRankClass = (idx) => {
+    if (idx === 0) return 'gold'
+    if (idx === 1) return 'silver'
+    if (idx === 2) return 'bronze'
+    return 'normal'
+  }
 
   // Scroll transcription to bottom
   useEffect(() => {
@@ -210,7 +270,6 @@ export default function ClassroomTeacher({ classId }) {
 
   if (!cls) return <div style={{ padding: 40 }}>Clase no encontrada.</div>
 
-  const participants = (cls.participantIds || []).map(id => users.find(u => u.id === id)).filter(Boolean)
   const pendingQ     = (cls.questions || []).filter(q => q.status === 'pending')
   const answeredQ    = (cls.questions || []).filter(q => q.status === 'answered')
   const displayQ     = qTab === 'pending' ? pendingQ : answeredQ
@@ -236,6 +295,9 @@ export default function ClassroomTeacher({ classId }) {
           </div>
           <button className="btn btn-secondary btn-sm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             ⚙️
+          </button>
+          <button className={`btn ${activeCheck ? 'btn-danger' : 'btn-primary'} btn-sm attention-launch-btn`} onClick={handleLaunchCheck} disabled={acLoading || !!activeCheck}>
+            {acLoading ? '⏳...' : activeCheck ? '🎯 Check activo...' : '🎯 Verificar Atención'}
           </button>
           <button className="btn btn-outline btn-sm" onClick={() => { setActiveClassId(null); setActivePage('dashboard') }}>↩ Salir</button>
           <button className="btn btn-danger" onClick={handleEndClass}>✕ Finalizar Clase</button>
@@ -385,6 +447,124 @@ export default function ClassroomTeacher({ classId }) {
             <button className="btn btn-sm btn-outline" onClick={handleAITopics}>🏷️ Identificar temas</button>
           </div>
 
+          {/* Attention Check Results Panel */}
+          {displayCheck && (() => {
+            const check = displayCheck
+            const isActive = check.status === 'active'
+            const responses = check.responses || []
+            const responded = responses.filter(r => r.responded)
+            const notResponded = responses.filter(r => !r.responded)
+            const total = responses.length
+            const pct = total > 0 ? Math.round((responded.length / total) * 100) : 0
+
+            // Sort responded by response time (fastest first)
+            const sortedResponded = [...responded].sort((a, b) => {
+              const tA = new Date(a.respondedAt).getTime() - new Date(check.launchedAt).getTime()
+              const tB = new Date(b.respondedAt).getTime() - new Date(check.launchedAt).getTime()
+              return tA - tB
+            })
+
+            // Calc remaining time for active checks
+            const elapsed = (Date.now() - new Date(check.launchedAt).getTime()) / 1000
+            const remaining = Math.max(0, (check.timeoutSecs || 30) - elapsed)
+
+            return (
+              <div style={{ padding: '0 20px 16px' }}>
+                <div className="attention-results-panel">
+                  <div className="attention-results-header">
+                    <div className="attention-results-title">
+                      🎯 {isActive ? 'Verificación en Curso' : 'Resultado de Verificación'}
+                      {isActive && <span className="badge badge-live" style={{ fontSize: 9 }}>● ACTIVO</span>}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {isActive && (
+                        <span style={{ fontSize: 14, fontWeight: 800, color: remaining <= 10 ? 'var(--danger)' : 'var(--primary)' }}>
+                          ⏱ {Math.ceil(remaining)}s
+                        </span>
+                      )}
+                      {!isActive && viewCheckId && (
+                        <button className="btn btn-ghost btn-sm" onClick={() => setViewCheckId(null)}>✕</button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="attention-results-body">
+                    {/* Progress */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                      <span>Respuestas: {responded.length}/{total}</span>
+                      <span style={{ color: pct >= 80 ? 'var(--success)' : pct >= 50 ? 'var(--warning)' : 'var(--danger)' }}>{pct}%</span>
+                    </div>
+                    <div className="attention-progress">
+                      <div className="attention-progress-fill" style={{ width: `${pct}%` }} />
+                    </div>
+
+                    {/* Ranked responded students */}
+                    {sortedResponded.map((r, idx) => {
+                      const user = users.find(u => String(u.id || u._id) === String(r.userId))
+                      const secs = fmtResponseTime(check, r)
+                      const secsNum = parseFloat(secs)
+                      return (
+                        <div key={r.userId || idx} className="attention-student-row responded">
+                          <div className={`attention-rank ${getRankClass(idx)}`}>
+                            {idx < 3 ? ['🥇','🥈','🥉'][idx] : idx + 1}
+                          </div>
+                          <div className="attention-student-info">
+                            <div className="attention-student-name">{user?.name || 'Estudiante'}</div>
+                          </div>
+                          <span className={`attention-response-time ${getTimeClass(secsNum)}`}>
+                            ⚡ {secs}s
+                          </span>
+                        </div>
+                      )
+                    })}
+
+                    {/* Not responded students */}
+                    {notResponded.map((r, idx) => {
+                      const user = users.find(u => String(u.id || u._id) === String(r.userId))
+                      return (
+                        <div key={r.userId || idx} className="attention-student-row not-responded">
+                          <div className="attention-rank fail">✕</div>
+                          <div className="attention-student-info">
+                            <div className="attention-student-name">{user?.name || 'Estudiante'}</div>
+                          </div>
+                          <span className="attention-response-time timeout">
+                            {isActive ? '⏳ Esperando...' : '❌ Sin respuesta'}
+                          </span>
+                        </div>
+                      )
+                    })}
+
+                    {/* Stats */}
+                    {!isActive && (
+                      <div className="attention-stats">
+                        <div className="attention-stat">
+                          <div className="attention-stat-value" style={{ color: 'var(--success)' }}>{responded.length}</div>
+                          <div className="attention-stat-label">Atentos</div>
+                        </div>
+                        <div className="attention-stat">
+                          <div className="attention-stat-value" style={{ color: 'var(--danger)' }}>{notResponded.length}</div>
+                          <div className="attention-stat-label">Desatentos</div>
+                        </div>
+                        <div className="attention-stat">
+                          <div className="attention-stat-value" style={{ color: 'var(--primary)' }}>{pct}%</div>
+                          <div className="attention-stat-label">Atención</div>
+                        </div>
+                        {responded.length > 0 && (
+                          <div className="attention-stat">
+                            <div className="attention-stat-value" style={{ color: 'var(--info)' }}>
+                              {fmtResponseTime(check, sortedResponded[0])}s
+                            </div>
+                            <div className="attention-stat-label">Más rápido</div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })()}
+
           {/* Status bar */}
           <div className="status-bar">
             <div className="status-dot">{isRecording && !isPaused ? 'Conexión estable · transcripción activa' : isPaused ? 'Transcripción pausada' : 'Transcripción inactiva'}</div>
@@ -432,6 +612,36 @@ export default function ClassroomTeacher({ classId }) {
               )}
             </div>
           </div>
+
+          {/* Attention Check History */}
+          {checkHistory.length > 0 && (
+            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                🎯 Historial de Checks
+                <span className="participants-count">{checkHistory.length}</span>
+              </div>
+              <div style={{ maxHeight: 120, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {checkHistory.map((ac, idx) => {
+                  const responded = (ac.responses || []).filter(r => r.responded).length
+                  const total = (ac.responses || []).length
+                  const pct = total > 0 ? Math.round((responded / total) * 100) : 0
+                  return (
+                    <div
+                      key={ac._id || idx}
+                      className="attention-history-item"
+                      onClick={() => setViewCheckId(viewCheckId === (ac._id || ac.id) ? null : (ac._id || ac.id))}
+                      style={viewCheckId === (ac._id || ac.id) ? { borderColor: 'var(--primary)', background: 'var(--primary-bg)' } : {}}
+                    >
+                      <span>#{checkHistory.length - idx} · {new Date(ac.launchedAt).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span className={`badge ${pct >= 80 ? 'badge-success' : pct >= 50 ? 'badge-warning' : 'badge-danger'}`} style={{ fontSize: 10 }}>
+                        {pct}% ({responded}/{total})
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Questions received */}
           <div className="chat-panel">
