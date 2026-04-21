@@ -237,3 +237,78 @@ exports.leaveClass = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// @desc  Launch attention check
+// @route POST /api/classes/:id/attention-check
+exports.launchAttentionCheck = async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+    if (!cls.isActive) return res.status(400).json({ message: 'La clase no está activa' });
+
+    // Check if there's already an active attention check
+    const hasActive = (cls.attentionChecks || []).some(ac => ac.status === 'active');
+    if (hasActive) return res.status(400).json({ message: 'Ya hay una verificación de atención activa' });
+
+    const timeoutSecs = req.body.timeoutSecs || 30;
+    const responses = (cls.participantIds || []).map(uid => ({
+      userId: uid,
+      responded: false,
+      respondedAt: null,
+    }));
+
+    cls.attentionChecks.push({
+      launchedAt: new Date(),
+      timeoutSecs,
+      responses,
+      status: 'active',
+    });
+
+    await cls.save();
+    res.json(cls);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// @desc  Respond to attention check
+// @route POST /api/classes/:id/attention-check/:checkId/respond
+exports.respondAttentionCheck = async (req, res) => {
+  try {
+    const { userId } = req.body;
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const check = cls.attentionChecks.id(req.params.checkId);
+    if (!check) return res.status(404).json({ message: 'Verificación no encontrada' });
+
+    // Auto-complete if timed out
+    const elapsed = (Date.now() - new Date(check.launchedAt).getTime()) / 1000;
+    if (elapsed > check.timeoutSecs) {
+      check.status = 'completed';
+      await cls.save();
+      return res.status(400).json({ message: 'El tiempo de verificación ha expirado' });
+    }
+
+    if (check.status !== 'active') {
+      return res.status(400).json({ message: 'La verificación ya no está activa' });
+    }
+
+    // Find and update the response for this user
+    const response = check.responses.find(r => String(r.userId) === String(userId));
+    if (!response) return res.status(404).json({ message: 'No estás registrado en esta verificación' });
+    if (response.responded) return res.status(400).json({ message: 'Ya respondiste a esta verificación' });
+
+    response.responded = true;
+    response.respondedAt = new Date();
+
+    // Check if all have responded → auto-complete
+    const allResponded = check.responses.every(r => r.responded);
+    if (allResponded) check.status = 'completed';
+
+    await cls.save();
+    res.json(cls);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};

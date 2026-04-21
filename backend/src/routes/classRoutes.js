@@ -25,6 +25,10 @@ router.put('/:id/summary', classController.setSummary);
 router.post('/:id/questions',                         classController.addQuestion);
 router.put('/:classId/questions/:questionId/answer',  classController.answerQuestion);
 
+// Attention Checks
+router.post('/:id/attention-check',                       classController.launchAttentionCheck);
+router.post('/:id/attention-check/:checkId/respond',      classController.respondAttentionCheck);
+
 // CRUD
 router.get('/',     classController.getAll);
 router.get('/:id',  classController.getById);
