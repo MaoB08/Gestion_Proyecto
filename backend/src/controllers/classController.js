@@ -28,6 +28,7 @@ exports.getById = async (req, res) => {
 exports.getByCourse = async (req, res) => {
   try {
     const classes = await Class.find({ courseId: req.params.courseId });
+    res.set('X-DB-Optimization', 'index_class_courseId');
     res.json(classes);
   } catch (err) {
     res.status(500).json({ message: err.message });

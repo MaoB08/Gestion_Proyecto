@@ -25,4 +25,7 @@ const CourseSchema = new mongoose.Schema({
   createdAt:   { type: Date, default: Date.now },
 });
 
+// Explicit index for filtering courses by teacher (Performance)
+CourseSchema.index({ teacherId: 1 });
+
 module.exports = mongoose.model('Course', CourseSchema);

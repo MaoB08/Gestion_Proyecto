@@ -110,6 +110,14 @@ export function AppProvider({ children }) {
   const [activePage, setActivePage] = useState('dashboard')
   const [activeClassId, setActiveClassId] = useState(null)
   const [grades, setGrades] = useState([])
+  const [indexInsight, setIndexInsight] = useState(null) // { name, timestamp }
+
+  // Helper to show index insight
+  const showIndexInsight = useCallback((indexName) => {
+    if (!indexName) return;
+    setIndexInsight({ name: indexName, timestamp: Date.now() })
+    setTimeout(() => setIndexInsight(null), 4000)
+  }, [])
 
   // Persist local-only state (users/classes still in localStorage for now)
   useEffect(() => { localStorage.setItem('classai_users', JSON.stringify(users)) }, [users])
@@ -131,6 +139,8 @@ export function AppProvider({ children }) {
           maxStudents: c.maxStudents || 20
         })))
         localStorage.removeItem('classai_courses')
+        // Check for index usage in teacher/student filtration
+        showIndexInsight(resCourses.headers.get('X-DB-Optimization'))
       }
 
       // 2. Fetch Teachers, Students and Admins
@@ -172,8 +182,8 @@ export function AppProvider({ children }) {
 
       if (resU.ok) {
         const admins = await resU.json()
-        const mappedA = admins.map(a => ({ ...a, id: a._id }))
-        allUsers = [...allUsers.filter(u => u.role === 'admin' && u.id === 'u1'), ...mappedA]
+        const mappedA = admins.map(a => ({ ...a, id: a._id, role: 'admin' }))
+        allUsers = [...allUsers.filter(u => (u.role === 'admin' && u.id === 'u1') || u.role !== 'admin'), ...mappedA]
       }
 
       setUsers(allUsers)
@@ -219,11 +229,12 @@ export function AppProvider({ children }) {
         body: JSON.stringify({ email, password }),
       })
       const json = await res.json()
-
+      
       // 403 = cuenta bloqueada o pendiente de aprobación
       if (res.status === 403) return { success: false, error: json.message }
 
       if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'))
         const user = { ...json, id: json.id || json._id }
         setCurrentUser(user)
         localStorage.setItem('classai_session', JSON.stringify(user))
@@ -823,17 +834,36 @@ export function AppProvider({ children }) {
   const fetchGradesByStudent = async (studentId) => {
     try {
       const res = await fetch(`http://localhost:3001/api/grades/student/${studentId}`);
-      const json = await res.json();
       if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        const json = await res.json();
         setGrades(prev => {
           const otherGrades = prev.filter(g => String(g.studentId?._id || g.studentId) !== String(studentId));
           return Array.isArray(json) ? [...otherGrades, ...json] : otherGrades;
         });
         return { success: true, grades: json };
       }
-      return { success: false, error: json.message || 'Error al obtener calificaciones' };
+      return { success: false, error: 'Error al obtener calificaciones' };
     } catch (err) {
       return { success: false, error: 'Error de red al obtener calificaciones' };
+    }
+  }
+
+  const fetchClassesByCourse = async (courseId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/course/${courseId}`);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        const json = await res.json();
+        setClasses(prev => {
+          const others = prev.filter(cl => String(cl.courseId) !== String(courseId));
+          return [...others, ...json.map(cl => ({ ...cl, id: cl._id, courseId: cl.courseId?._id || cl.courseId }))];
+        });
+        return { success: true, classes: json };
+      }
+      return { success: false, error: 'Error al obtener clases' };
+    } catch (err) {
+      return { success: false, error: 'Error de red al obtener clases' };
     }
   }
 
@@ -859,9 +889,11 @@ export function AppProvider({ children }) {
     createCourse, updateCourse, deleteCourse, enrollStudent, unenrollStudent,
     addCourseContent, deleteCourseContent, requestEnrollment, approveEnrollment, rejectEnrollment,
     // Classes
-    createClass, activateClass, deactivateClass, joinClass, leaveClass,
+    createClass, activateClass, deactivateClass, joinClass, leaveClass, fetchClassesByCourse,
     appendTranscription, clearTranscription, saveTranscription, setSummary,
     sendQuestion, answerQuestion,
+    indexInsight, setIndexInsight,
+    showIndexInsight,
     // Grades
     grades, saveGrade, fetchGradesByCourse, fetchGradesByStudent,
     // Helpers

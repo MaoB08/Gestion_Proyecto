@@ -5,7 +5,7 @@ const { Teacher } = require('../models/Teacher');
 const Student  = require('../models/Student');
 
 // ── GET /api/users/all — lista unificada desde las 3 colecciones ──────────────
-router.get('/all', async (_req, res) => {
+const getAllUsers = async (_req, res) => {
   try {
     const [admins, teachers, students] = await Promise.all([
       User.find().select('-password').lean(),
@@ -76,6 +76,19 @@ router.get('/all', async (_req, res) => {
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
-});
+};
+
+// ── GET /api/users — Solo administradores ──────────────
+const getAdmins = async (_req, res) => {
+  try {
+    const admins = await User.find().select('-password').lean();
+    res.json(admins);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+router.get('/',    getAdmins);
+router.get('/all', getAllUsers);
 
 module.exports = router;
