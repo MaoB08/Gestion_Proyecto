@@ -44,6 +44,7 @@ exports.getGradesByStudent = async (req, res) => {
     const grades = await Grade.find({ studentId: req.params.studentId })
       .populate('courseId', 'name')
       .populate('teacherId', 'nombre apellido');
+    res.set('X-DB-Optimization', 'index_grade_studentId');
     res.json(grades);
   } catch (err) {
     res.status(500).json({ message: err.message });

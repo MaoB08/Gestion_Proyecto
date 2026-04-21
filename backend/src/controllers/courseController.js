@@ -28,6 +28,7 @@ exports.getById = async (req, res) => {
 exports.getByTeacher = async (req, res) => {
   try {
     const courses = await Course.find({ teacherId: req.params.teacherId });
+    res.set('X-DB-Optimization', 'index_course_teacherId');
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -39,6 +40,7 @@ exports.getByTeacher = async (req, res) => {
 exports.getByStudent = async (req, res) => {
   try {
     const courses = await Course.find({ studentIds: req.params.studentId });
+    res.set('X-DB-Optimization', 'index_course_studentIds');
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: err.message });

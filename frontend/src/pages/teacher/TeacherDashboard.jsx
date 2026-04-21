@@ -279,6 +279,61 @@ function ManageContentsModal({ courseId, onClose }) {
   )
 }
 
+function CourseClassesModal({ courseId, onClose }) {
+  const { courses, getClassesForCourse, fetchClassesByCourse } = useApp()
+  const course = courses.find(c => (c.id === courseId || c._id === courseId))
+  
+  useEffect(() => {
+    fetchClassesByCourse(courseId)
+  }, [courseId])
+
+  const courseClasses = getClassesForCourse(courseId) || []
+  const pastClasses = courseClasses.filter(cl => !cl.isActive).reverse()
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+        <div className="modal-header purple">
+          <div className="modal-title" style={{ color: 'white' }}>📋 Clases Anteriores: {course?.name}</div>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+          {pastClasses.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon">📋</span>
+              <div className="empty-state-title">No hay clases finalizadas</div>
+              <div className="empty-state-desc">Las clases aparecerán aquí una vez que hayan finalizado y se guarde su transcripción.</div>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr><th>Título</th><th>Fecha</th><th>Asistentes</th><th>Estado</th></tr>
+              </thead>
+              <tbody>
+                {pastClasses.map(cl => (
+                  <tr key={cl.id}>
+                    <td><div style={{ fontWeight: 600 }}>{cl.title}</div></td>
+                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{cl.date}</td>
+                    <td><span className="badge badge-primary">{(cl.attendance || []).length} 👥</span></td>
+                    <td>
+                      <span className={`badge ${cl.savedTranscription ? 'badge-success' : 'badge-gray'}`}>
+                        {cl.savedTranscription ? '✅ Guardada' : 'Finalizada'}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ManageGradesView({ courseId, onBack }) {
   const { courses, users, grades, saveGrade, fetchGradesByCourse } = useApp()
   const [selectedActivityId, setSelectedActivityId] = useState('')
@@ -501,6 +556,7 @@ export default function TeacherDashboard() {
   const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData } = useApp()
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [showContentsModal, setShowContentsModal] = useState(null)
+  const [showClassesModal, setShowClassesModal] = useState(null)
   const [selectedCourseForGrades, setSelectedCourseForGrades] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -666,13 +722,20 @@ export default function TeacherDashboard() {
                           </div>
                           <button 
                             className="btn btn-outline" 
-                            style={{ width: '100%', height: 40, border: '1px solid var(--primary)', color: 'var(--primary)' }}
+                            style={{ width: '100%', height: 40, border: '1px solid var(--primary)', color: 'var(--primary)', marginBottom: 4 }}
                             onClick={() => {
                               setSelectedCourseForGrades(c.id || c._id)
                               setActivePage('grades')
                             }}
                           >
                             📝 Calificaciones
+                          </button>
+                          <button 
+                            className="btn btn-ghost" 
+                            style={{ width: '100%', height: 36, fontSize: 13, color: 'var(--text-secondary)' }}
+                            onClick={() => setShowClassesModal(c.id || c._id)}
+                          >
+                            📋 Clases anteriores
                           </button>
                           {c.estado === 'Pausado' && (
                             <button 
@@ -781,6 +844,10 @@ export default function TeacherDashboard() {
 
       {showContentsModal && (
         <ManageContentsModal courseId={showContentsModal} onClose={() => setShowContentsModal(null)} />
+      )}
+
+      {showClassesModal && (
+        <CourseClassesModal courseId={showClassesModal} onClose={() => setShowClassesModal(null)} />
       )}
     </>
   )
