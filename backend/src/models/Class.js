@@ -24,6 +24,19 @@ const AttendanceSchema = new mongoose.Schema({
   joinedAt: { type: Date, default: Date.now },
 });
 
+const AttentionCheckResponseSchema = new mongoose.Schema({
+  userId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  responded:   { type: Boolean, default: false },
+  respondedAt: { type: Date, default: null },
+});
+
+const AttentionCheckSchema = new mongoose.Schema({
+  launchedAt:  { type: Date, default: Date.now },
+  timeoutSecs: { type: Number, default: 30 },
+  responses:   [AttentionCheckResponseSchema],
+  status:      { type: String, enum: ['active', 'completed'], default: 'active' },
+});
+
 // ── CLASS ─────────────────────────────────────────────────────────────────────
 const ClassSchema = new mongoose.Schema({
   courseId:           { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
@@ -40,6 +53,7 @@ const ClassSchema = new mongoose.Schema({
   participantIds:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   questions:          [QuestionSchema],
   attendance:         [AttendanceSchema],
+  attentionChecks:    [AttentionCheckSchema],
   createdAt:          { type: Date, default: Date.now },
 });
 
