@@ -552,11 +552,85 @@ function ManageGradesView({ courseId, onBack }) {
   )
 }
 
+function CourseStudentsModal({ courseId, onClose }) {
+  const { courses } = useApp()
+  const course = courses.find(c => (c.id === courseId || c._id === courseId))
+  const [enrolledStudents, setEnrolledStudents] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        // Esta llamada espera que el backend resuelva la agregación con $project
+        const res = await fetch(`http://localhost:3001/api/courses/${courseId}/students`)
+        if (res.ok) {
+          const data = await res.json()
+          setEnrolledStudents(data)
+        }
+      } catch (err) {
+        console.error('Error al obtener estudiantes', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStudents()
+  }, [courseId])
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 800 }}>
+        <div className="modal-header purple">
+          <div className="modal-title" style={{ color: 'white' }}>📄 Estudiantes Inscritos: {course?.name}</div>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
+        </div>
+        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {loading ? (
+            <div className="empty-state">
+              <div className="empty-state-title">Cargando estudiantes...</div>
+            </div>
+          ) : enrolledStudents.length === 0 ? (
+            <div className="empty-state">
+              <span className="empty-state-icon">👥</span>
+              <div className="empty-state-title">No hay estudiantes inscritos</div>
+              <div className="empty-state-desc">Aún no hay estudiantes en este curso.</div>
+            </div>
+          ) : (
+            <table className="data-table">
+              <thead>
+                <tr><th>Nombre</th><th>Apellido</th><th>Correo</th></tr>
+              </thead>
+              <tbody>
+                {enrolledStudents.map(st => {
+                  const parts = (st.nombre || st.name || '').split(' ')
+                  const nombre = parts[0] || '-'
+                  const apellido = st.apellido || parts.slice(1).join(' ') || '-'
+                  return (
+                    <tr key={st._id || st.id}>
+                      <td><div style={{ fontWeight: 600 }}>{nombre}</div></td>
+                      <td>{apellido}</td>
+                      <td>{st.correo || st.email || '-'}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          )}
+        </div>
+        <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <button className="btn btn-secondary">🌐 Vista geospacial</button>
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TeacherDashboard() {
   const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData } = useApp()
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [showContentsModal, setShowContentsModal] = useState(null)
   const [showClassesModal, setShowClassesModal] = useState(null)
+  const [showStudentsModal, setShowStudentsModal] = useState(null)
   const [selectedCourseForGrades, setSelectedCourseForGrades] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -700,6 +774,13 @@ export default function TeacherDashboard() {
                         </div>
 
                         <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
+                          <button 
+                            className="btn btn-secondary" 
+                            style={{ width: '100%', height: 36, fontSize: 13 }}
+                            onClick={() => setShowStudentsModal(c.id || c._id)}
+                          >
+                            📄 Ver estudiantes
+                          </button>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button className="btn btn-secondary" style={{ flex: 1, height: 40 }} onClick={() => setShowContentsModal(c.id || c._id)}>
                               📑 Gestionar
@@ -848,6 +929,10 @@ export default function TeacherDashboard() {
 
       {showClassesModal && (
         <CourseClassesModal courseId={showClassesModal} onClose={() => setShowClassesModal(null)} />
+      )}
+
+      {showStudentsModal && (
+        <CourseStudentsModal courseId={showStudentsModal} onClose={() => setShowStudentsModal(null)} />
       )}
     </>
   )

@@ -4,73 +4,111 @@ const User     = require('../models/User');
 const { Teacher } = require('../models/Teacher');
 const Student  = require('../models/Student');
 
-// ── GET /api/users/all — lista unificada desde las 3 colecciones ──────────────
-const getAllUsers = async (_req, res) => {
+const getAllUsers = async (req, res) => {
   try {
-    const [admins, teachers, students] = await Promise.all([
-      User.find().select('-password').lean(),
-      Teacher.find().select('-clave').lean(),
-      Student.find().select('-clave').lean(),
-    ]);
+    const { limit: limitParam, role, search, page: pageParam } = req.query;
+    const limit = (limitParam && limitParam !== 'Todos') ? parseInt(limitParam) : 0;
+    const page = parseInt(pageParam) || 1;
+    const skip = limit > 0 ? (page - 1) * limit : 0;
 
-    const normalized = [
-      ...admins.map(u => ({
-        id:        u._id.toString(),
-        name:      u.name,
-        email:     u.email,
-        username:  u.username,
-        role:      u.role,
-        avatar:    u.avatar || u.name.slice(0, 2).toUpperCase(),
-        estado:    true,
-        aprobado:  true,
-        createdAt: u.createdAt,
-      })),
+    const counts = { admin: 0, teacher: 0, student: 0 };
+    const searchRegex = search ? new RegExp(search, 'i') : null;
 
-      ...teachers.map(t => {
-        const fullName = `${t.nombre} ${t.apellido}`;
-        return {
-          id:          t._id.toString(),
-          name:        fullName,
-          nombre:      t.nombre,
-          apellido:    t.apellido,
-          email:       t.correo,
-          username:    t.documento,
-          role:        'teacher',
-          avatar:      fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-          documento:   t.documento,
-          telefono:    t.telefono,
-          areaDominio: t.areaDominio,
-          anioInicio:  t.anioInicio,
-          estado:      t.estado,
-          aprobado:    true,
-          createdAt:   t.createdAt,
-        };
-      }),
+    let adminQ = User.find().select('-password');
+    if (searchRegex) adminQ = adminQ.or([{ name: searchRegex }, { email: searchRegex }, { username: searchRegex }]);
+    counts.admin = await User.countDocuments(adminQ.getFilter());
 
-      ...students.map(s => {
-        const fullName = `${s.nombre} ${s.apellido}`;
-        return {
-          id:             s._id.toString(),
-          name:           fullName,
-          nombre:         s.nombre,
-          apellido:       s.apellido,
-          email:          s.correo,
-          username:       s.documento,
-          role:           'student',
-          avatar:         fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-          documento:      s.documento,
-          telefono:       s.telefono,
-          institucion:    s.institucion,
-          anioNacimiento: s.anioNacimiento,
-          estado:         s.estado,
-          aprobado:       s.aprobado,
-          createdAt:      s.createdAt,
-        };
-      }),
-    ];
+    let teacherQ = Teacher.find().select('-clave');
+    if (searchRegex) teacherQ = teacherQ.or([{ nombre: searchRegex }, { apellido: searchRegex }, { correo: searchRegex }, { documento: searchRegex }, { areaDominio: searchRegex }]);
+    counts.teacher = await Teacher.countDocuments(teacherQ.getFilter());
 
-    // Sort by creation date descending
-    normalized.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    let studentQ = Student.find().select('-clave');
+    if (searchRegex) studentQ = studentQ.or([{ nombre: searchRegex }, { apellido: searchRegex }, { correo: searchRegex }, { documento: searchRegex }, { institucion: searchRegex }]);
+    counts.student = await Student.countDocuments(studentQ.getFilter());
+
+    const searchRegexStr = search ? search : null;
+
+    const adminPipeline = [];
+    if (!role || role === 'all' || role === 'admin') {
+      if (searchRegexStr) {
+        adminPipeline.push({ $match: { $or: [{ name: { $regex: searchRegexStr, $options: 'i' } }, { email: { $regex: searchRegexStr, $options: 'i' } }, { username: { $regex: searchRegexStr, $options: 'i' } }] } });
+      }
+      adminPipeline.push({
+        $project: {
+          _id: 0, id: { $toString: "$_id" }, name: "$name", nombre: null, apellido: null,
+          email: "$email", username: "$username", role: "$role",
+          estado: { $literal: true }, aprobado: { $literal: true }, createdAt: "$createdAt",
+          documento: null, telefono: null, areaDominio: null, anioInicio: null,
+          institucion: null, anioNacimiento: null
+        }
+      });
+    }
+
+    const teacherPipeline = [];
+    if (!role || role === 'all' || role === 'teacher') {
+      if (searchRegexStr) {
+        teacherPipeline.push({ $match: { $or: [{ nombre: { $regex: searchRegexStr, $options: 'i' } }, { apellido: { $regex: searchRegexStr, $options: 'i' } }, { correo: { $regex: searchRegexStr, $options: 'i' } }, { documento: { $regex: searchRegexStr, $options: 'i' } }, { areaDominio: { $regex: searchRegexStr, $options: 'i' } }] } });
+      }
+      teacherPipeline.push({
+        $project: {
+          _id: 0, id: { $toString: "$_id" }, name: { $concat: ["$nombre", " ", "$apellido"] },
+          nombre: "$nombre", apellido: "$apellido", email: "$correo", username: "$documento",
+          role: { $literal: "teacher" }, estado: "$estado", aprobado: { $literal: true },
+          createdAt: "$createdAt", documento: "$documento", telefono: "$telefono",
+          areaDominio: "$areaDominio", anioInicio: "$anioInicio", institucion: null, anioNacimiento: null
+        }
+      });
+    }
+
+    const studentPipeline = [];
+    if (!role || role === 'all' || role === 'student') {
+      if (searchRegexStr) {
+        studentPipeline.push({ $match: { $or: [{ nombre: { $regex: searchRegexStr, $options: 'i' } }, { apellido: { $regex: searchRegexStr, $options: 'i' } }, { correo: { $regex: searchRegexStr, $options: 'i' } }, { documento: { $regex: searchRegexStr, $options: 'i' } }, { institucion: { $regex: searchRegexStr, $options: 'i' } }] } });
+      }
+      studentPipeline.push({
+        $project: {
+          _id: 0, id: { $toString: "$_id" }, name: { $concat: ["$nombre", " ", "$apellido"] },
+          nombre: "$nombre", apellido: "$apellido", email: "$correo", username: "$documento",
+          role: { $literal: "student" }, estado: "$estado", aprobado: "$aprobado",
+          createdAt: "$createdAt", documento: "$documento", telefono: "$telefono",
+          areaDominio: null, anioInicio: null, institucion: "$institucion", anioNacimiento: "$anioNacimiento"
+        }
+      });
+    }
+
+    const mainPipeline = [];
+    let baseCollection = User;
+
+    if (!role || role === 'all') {
+      mainPipeline.push(...adminPipeline);
+      mainPipeline.push({ $unionWith: { coll: "teachers", pipeline: teacherPipeline } });
+      mainPipeline.push({ $unionWith: { coll: "students", pipeline: studentPipeline } });
+    } else if (role === 'admin') {
+      mainPipeline.push(...adminPipeline);
+    } else if (role === 'teacher') {
+      baseCollection = Teacher;
+      mainPipeline.push(...teacherPipeline);
+    } else if (role === 'student') {
+      baseCollection = Student;
+      mainPipeline.push(...studentPipeline);
+    }
+
+    mainPipeline.push({ $sort: { createdAt: -1 } });
+    if (skip > 0) mainPipeline.push({ $skip: skip });
+    if (limit > 0) mainPipeline.push({ $limit: limit });
+
+    const rawResults = await baseCollection.aggregate(mainPipeline);
+
+    const normalized = rawResults.map(u => ({
+      ...u,
+      avatar: (u.name || '').split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
+    }));
+
+    res.set('X-Count-Admin', counts.admin);
+    res.set('X-Count-Teacher', counts.teacher);
+    res.set('X-Count-Student', counts.student);
+    res.set('X-Count-All', counts.admin + counts.teacher + counts.student);
+    res.set('Access-Control-Expose-Headers', 'X-Count-Admin, X-Count-Teacher, X-Count-Student, X-Count-All');
 
     res.json(normalized);
   } catch (err) {
