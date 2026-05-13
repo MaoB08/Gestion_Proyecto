@@ -25,7 +25,13 @@ const CourseSchema = new mongoose.Schema({
   createdAt:   { type: Date, default: Date.now },
 });
 
-// Explicit index for filtering courses by teacher (Performance)
+// Explicit index for filtering courses by teacher (Performance) - Single Index
 CourseSchema.index({ teacherId: 1 });
+
+// b. Índice compuesto (Compound Index): Para búsquedas frecuentes combinando categoría y estado
+CourseSchema.index({ category: 1, estado: 1 });
+
+// c. Índice multikey: Para buscar rápidamente todos los cursos en los que un estudiante está inscrito (studentIds es un array)
+CourseSchema.index({ studentIds: 1 });
 
 module.exports = mongoose.model('Course', CourseSchema);

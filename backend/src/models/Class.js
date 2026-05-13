@@ -57,7 +57,13 @@ const ClassSchema = new mongoose.Schema({
   createdAt:          { type: Date, default: Date.now },
 });
 
-// Explicit index for filtering classes by course (Performance)
+// Explicit index for filtering classes by course (Performance) - Single Index
 ClassSchema.index({ courseId: 1 });
+
+// b. Índice compuesto (Compound Index): Optimiza la búsqueda de clases activas dentro de un curso específico
+ClassSchema.index({ courseId: 1, isActive: 1 });
+
+// c. Índice multikey: Indexa el array participantIds para encontrar rápidamente todas las clases a las que ha asistido un usuario
+ClassSchema.index({ participantIds: 1 });
 
 module.exports = mongoose.model('Class', ClassSchema);

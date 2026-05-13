@@ -27,8 +27,24 @@ exports.getById = async (req, res) => {
 // @route GET /api/classes/course/:courseId
 exports.getByCourse = async (req, res) => {
   try {
-    const classes = await Class.find({ courseId: req.params.courseId });
-    res.set('X-DB-Optimization', 'index_class_courseId');
+    const filter = { courseId: req.params.courseId };
+    if (req.query.isActive !== undefined) {
+      filter.isActive = req.query.isActive === 'true';
+    }
+    const classes = await Class.find(filter);
+    res.set('X-DB-Optimization', 'index_class_courseId_isActive');
+    res.json(classes);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Get classes by participant
+// @route GET /api/classes/participant/:userId
+exports.getByParticipant = async (req, res) => {
+  try {
+    const classes = await Class.find({ participantIds: req.params.userId }).populate('courseId', 'name');
+    res.set('X-DB-Optimization', 'index_class_participantIds');
     res.json(classes);
   } catch (err) {
     res.status(500).json({ message: err.message });

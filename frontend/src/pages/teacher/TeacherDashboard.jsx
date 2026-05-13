@@ -918,7 +918,7 @@ function CourseStudentsModal({ courseId, onClose }) {
 }
 
 export default function TeacherDashboard() {
-  const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData } = useApp()
+  const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData, fetchActiveClassesByCourse } = useApp()
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [showContentsModal, setShowContentsModal] = useState(null)
   const [showClassesModal, setShowClassesModal] = useState(null)
@@ -940,11 +940,22 @@ export default function TeacherDashboard() {
 
   const myCourses = getCoursesForTeacher(currentUser?.id) || []
   const myClasses = myCourses.flatMap(c => getClassesForCourse(c.id) || [])
-  const activeClasses = myClasses.filter(cl => cl.isActive)
+  
+  const [activeClassesDynamic, setActiveClassesDynamic] = useState([])
+
+  useEffect(() => {
+    if (myCourses.length > 0) {
+      Promise.all(myCourses.map(c => fetchActiveClassesByCourse(c.id || c._id))).then(results => {
+        setActiveClassesDynamic(results.flat())
+      })
+    }
+  }, [courses, classes])
+
+  const activeClasses = activeClassesDynamic
   const pastClasses = myClasses.filter(cl => !cl.isActive && cl.savedTranscription)
 
   const enterClass = (classId) => {
-    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId))
+    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId)) || activeClassesDynamic.find(cl => String(cl.id || cl._id) === String(classId))
     if (cls && cls.startTime) {
       const [h, m] = cls.startTime.split(':')
       const start = new Date(currentTime)

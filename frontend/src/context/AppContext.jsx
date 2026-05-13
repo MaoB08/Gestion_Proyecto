@@ -114,9 +114,7 @@ export function AppProvider({ children }) {
 
   // Helper to show index insight
   const showIndexInsight = useCallback((indexName) => {
-    if (!indexName) return;
-    setIndexInsight({ name: indexName, timestamp: Date.now() })
-    setTimeout(() => setIndexInsight(null), 4000)
+    return; // Disabled permanently per user request
   }, [])
 
   // Persist local-only state (users/classes still in localStorage for now)
@@ -992,6 +990,68 @@ export function AppProvider({ children }) {
     }
   }
 
+  // ── INDEX-OPTIMIZED FETCH FUNCTIONS ────────────────────────
+  const fetchCoursesAdvanced = async (category, estado) => {
+    try {
+      let url = 'http://localhost:3001/api/courses?';
+      if (category) url += `category=${encodeURIComponent(category)}&`;
+      if (estado) url += `estado=${encodeURIComponent(estado)}`;
+      
+      const res = await fetch(url);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchCoursesByStudent = async (studentId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/courses/student/${studentId}`);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchActiveClassesByCourse = async (courseId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/course/${courseId}?isActive=true`);
+      if (res.ok) {
+        // Mongoose might return X-DB-Optimization header if index was hit
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchParticipantHistory = async (userId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/participant/${userId}`);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
   // ── HELPERS ────────────────────────────────
   const getUserById = (id) => users.find(u => String(u.id || u._id) === String(id))
   const getCourseById = (id) => courses.find(c => String(c.id || c._id) === String(id))
@@ -1021,6 +1081,8 @@ export function AppProvider({ children }) {
     showIndexInsight,
     // Grades
     grades, saveGrade, fetchGradesByCourse, fetchGradesByStudent,
+    // Index-optimized fetching
+    fetchCoursesAdvanced, fetchCoursesByStudent, fetchActiveClassesByCourse, fetchParticipantHistory,
     // Helpers
     getUserById, getCourseById, getClassById, getClassesForCourse,
     getCoursesForTeacher, getCoursesForStudent, getActiveClasses,

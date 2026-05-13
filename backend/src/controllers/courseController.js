@@ -42,7 +42,11 @@ exports.getCategoryReport = async (req, res) => {
 // @route GET /api/courses
 exports.getAll = async (req, res) => {
   try {
-    const { sortBy, order } = req.query;
+    const { sortBy, order, category, estado } = req.query;
+
+    const filter = {};
+    if (category) filter.category = category;
+    if (estado) filter.estado = estado;
 
     if (sortBy === 'students' || sortBy === 'classes') {
       const sortOrder = order === 'desc' ? -1 : 1;
@@ -91,7 +95,9 @@ exports.getAll = async (req, res) => {
       return res.json(aggregatedCourses);
     }
 
-    const courses = await Course.find().populate('teacherId', 'nombre apellido correo');
+    const courses = await Course.find(filter).populate('teacherId', 'nombre apellido correo');
+    // Indicamos en headers que esta ruta puede aprovechar el índice compuesto si se pasan category y estado
+    res.set('X-DB-Optimization', 'index_course_category_estado');
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: err.message });

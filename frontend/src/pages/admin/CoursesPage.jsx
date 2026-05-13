@@ -18,7 +18,7 @@ function Modal({ title, onClose, children, footer }) {
 }
 
 export default function CoursesPage() {
-  const { users, courses, classes, createCourse, updateCourse, deleteCourse, enrollStudent, unenrollStudent, createClass, refreshData } = useApp()
+  const { users, courses, classes, createCourse, updateCourse, deleteCourse, enrollStudent, unenrollStudent, createClass, refreshData, fetchCoursesAdvanced } = useApp()
   const [modal, setModal]     = useState(null)
   const [selected, setSelected] = useState(null)
   const [search, setSearch]   = useState('')
@@ -28,6 +28,9 @@ export default function CoursesPage() {
   const [reportData, setReportData] = useState([])
   const [reportLoading, setReportLoading] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [filterCategory, setFilterCategory] = useState('')
+  const [filterEstado, setFilterEstado] = useState('')
+  const [dynamicCourses, setDynamicCourses] = useState(null)
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
@@ -48,7 +51,11 @@ export default function CoursesPage() {
         return
       }
       try {
-        const res = await fetch(`http://localhost:3001/api/courses?sortBy=${sortConfig.field}&order=${sortConfig.order}`)
+        let url = `http://localhost:3001/api/courses?sortBy=${sortConfig.field}&order=${sortConfig.order}`
+        if (filterCategory) url += `&category=${encodeURIComponent(filterCategory)}`
+        if (filterEstado) url += `&estado=${encodeURIComponent(filterEstado)}`
+        
+        const res = await fetch(url)
         if (res.ok) {
           const data = await res.json()
           setSortedCourses(data)
@@ -58,7 +65,17 @@ export default function CoursesPage() {
       }
     }
     fetchSorted()
-  }, [sortConfig])
+  }, [sortConfig, filterCategory, filterEstado])
+
+  useEffect(() => {
+    if ((filterCategory || filterEstado) && !sortConfig.field) {
+      fetchCoursesAdvanced(filterCategory, filterEstado).then(data => {
+        setDynamicCourses(data)
+      })
+    } else {
+      setDynamicCourses(null)
+    }
+  }, [filterCategory, filterEstado, sortConfig.field])
 
   const handleSort = (field) => {
     setSortConfig(prev => ({
@@ -85,7 +102,7 @@ export default function CoursesPage() {
 
   const getCourseClasses = (courseId) => classes.filter(cl => cl.courseId === courseId)
 
-  const baseCourses = sortedCourses || courses
+  const baseCourses = sortedCourses || dynamicCourses || courses
   const filtered = baseCourses.filter(c =>
     c.name.toLowerCase().includes(search.toLowerCase()) ||
     c.category.toLowerCase().includes(search.toLowerCase())
@@ -245,9 +262,20 @@ export default function CoursesPage() {
             <div className="search-wrap" style={{ marginBottom: 16, display: 'flex', gap: 12, alignItems: 'center' }}>
               <div style={{ flex: 1, position: 'relative' }}>
                 <span className="search-icon">🔍</span>
-                <input className="form-input" placeholder="Buscar cursos..." value={search} onChange={e => setSearch(e.target.value)} />
+                <input className="form-input" placeholder="Buscar por texto..." value={search} onChange={e => setSearch(e.target.value)} />
               </div>
-              <button className="btn btn-secondary" onClick={openReportModal}>📊 Reporte de categorías</button>
+              <select className="form-select" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: 160 }}>
+                <option value="">Todas las Categorías</option>
+                {CATEGORIES.map(cat => <option key={cat} value={cat}>{cat}</option>)}
+              </select>
+              <select className="form-select" value={filterEstado} onChange={e => setFilterEstado(e.target.value)} style={{ width: 150 }}>
+                <option value="">Cualquier Estado</option>
+                <option value="Activo">✅ Activo</option>
+                <option value="Desactivado">❌ Desactivado</option>
+                <option value="En espera de docente">⏳ En espera</option>
+                <option value="Pausado">⏸️ Pausado</option>
+              </select>
+              <button className="btn btn-secondary" onClick={openReportModal}>📊 Reporte</button>
             </div>
 
             <table className="data-table">

@@ -5,6 +5,7 @@ const classController = require('../controllers/classController');
 // Special queries (before /:id)
 router.get('/active', classController.getActive);
 router.get('/course/:courseId', classController.getByCourse);
+router.get('/participant/:userId', classController.getByParticipant);
 
 // Lifecycle
 router.put('/:id/activate', classController.activate);
