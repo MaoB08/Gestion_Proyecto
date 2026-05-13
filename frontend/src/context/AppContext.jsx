@@ -221,12 +221,18 @@ export function AppProvider({ children }) {
 
   // ── AUTH ───────────────────────────────────────────────────────────────────
   // POST /api/auth/login — verifica email + contraseña contra MongoDB
-  const login = async (email, password) => {
+  const login = async (email, password, latitude = null, longitude = null) => {
     try {
+      const body = { email, password }
+      if (latitude !== null && longitude !== null) {
+        body.latitude = latitude
+        body.longitude = longitude
+      }
+
       const res = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       const json = await res.json()
 

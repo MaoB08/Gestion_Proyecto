@@ -145,7 +145,8 @@ exports.getCourseStudents = async (req, res) => {
           _id: '$enrolledStudents._id',
           nombre: '$enrolledStudents.nombre',
           apellido: '$enrolledStudents.apellido',
-          correo: '$enrolledStudents.correo'
+          correo: '$enrolledStudents.correo',
+          location: '$enrolledStudents.location'
         }
       }
     ]);

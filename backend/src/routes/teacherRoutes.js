@@ -1,6 +1,6 @@
-const express  = require('express');
-const bcrypt    = require('bcryptjs');
-const router    = express.Router();
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const router = express.Router();
 const { Teacher, DOMAIN_AREAS } = require('../models/Teacher');
 
 // ── GET /api/teachers — list all teachers ─────────────────────────────────────

@@ -12,7 +12,34 @@ export default function LoginPage() {
     e.preventDefault()
     setError('')
     setLoading(true)
-    const result = await login(form.email, form.password)
+
+    let latitude = null;
+    let longitude = null;
+    try {
+      if (navigator.geolocation) {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 300000,
+          });
+        });
+        latitude = pos.coords.latitude;
+        longitude = pos.coords.longitude;
+        console.log("Ubicación obtenida:", latitude, longitude);
+      } else {
+        console.warn("Geolocation API no disponible en este navegador");
+      }
+    } catch (err) {
+      const errMsgs = {
+        1: "Permiso de ubicación denegado por el usuario",
+        2: "Ubicación no disponible (verifica que el servicio de ubicación de Windows esté activo)",
+        3: "Tiempo de espera agotado al obtener ubicación",
+      };
+      console.warn("Error de geolocalización:", errMsgs[err?.code] || err);
+    }
+
+    const result = await login(form.email, form.password, latitude, longitude)
     if (!result.success) setError(result.error)
     setLoading(false)
   }

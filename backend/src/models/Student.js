@@ -79,10 +79,25 @@ const StudentSchema = new mongoose.Schema({
     default: false,
   },
 
+  // GeoJSON location point for tracking student location at login
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+    }
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+// Optionally we can add a 2dsphere index if needed for querying by location
+StudentSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Student', StudentSchema);
