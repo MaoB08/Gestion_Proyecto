@@ -6,10 +6,24 @@ export default function ReportsPage() {
   const { users, courses, classes, refreshData } = useApp()
   const [tab, setTab] = useState('students')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [teacherHistory, setTeacherHistory] = useState({ recientes: [], antiguos: [] })
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/teachers/history')
+      if (res.ok) {
+        const data = await res.json()
+        setTeacherHistory(data)
+      }
+    } catch (err) {
+      console.error('Error fetching teacher history:', err)
+    }
+  }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await refreshData()
+    if (tab === 'teacherHistory') await fetchHistory()
     setIsRefreshing(false)
   }
 
@@ -112,8 +126,12 @@ export default function ReportsPage() {
                 { id: 'classes', label: `Clases por Profesor (${classesPerTeacher.length})` },
                 { id: 'attendance', label: `Asistencia por Clase (${attendance.length})` },
                 { id: 'optimization', label: 'Optimización de BD (Índices)' },
+                { id: 'teacherHistory', label: 'Histórico de profesores' },
               ].map(t => (
-                <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+                <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => {
+                  setTab(t.id)
+                  if (t.id === 'teacherHistory') fetchHistory()
+                }}>
                   {t.label}
                 </button>
               ))}
@@ -295,6 +313,62 @@ export default function ReportsPage() {
                     <div style={{ marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
                       * Valores proyectados basados en una colección de 50,000 registros.
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Teacher History Tab */}
+            {tab === 'teacherHistory' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, marginTop: 10 }}>
+                {/* Recientes */}
+                <div>
+                  <h4 style={{ marginBottom: 16, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>🆕</span> Profesores recientes (2025-2026)
+                  </h4>
+                  <div className="card" style={{ padding: 0, border: '1px solid var(--border)', boxShadow: 'none' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr><th>Nombre</th><th style={{ textAlign: 'center' }}>Año Inicio</th></tr>
+                      </thead>
+                      <tbody>
+                        {teacherHistory.recientes.length === 0 ? (
+                          <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Sin registros</td></tr>
+                        ) : (
+                          teacherHistory.recientes.map((t, i) => (
+                            <tr key={i}>
+                              <td><div style={{ fontWeight: 600 }}>{t.nombre} {t.apellido}</div></td>
+                              <td style={{ textAlign: 'center' }}><span className="badge badge-success">{t.anioInicio}</span></td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Antiguos */}
+                <div>
+                  <h4 style={{ marginBottom: 16, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>⏳</span> Profesores antiguos (Pre-2025)
+                  </h4>
+                  <div className="card" style={{ padding: 0, border: '1px solid var(--border)', boxShadow: 'none' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr><th>Nombre</th><th style={{ textAlign: 'center' }}>Año Inicio</th></tr>
+                      </thead>
+                      <tbody>
+                        {teacherHistory.antiguos.length === 0 ? (
+                          <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Sin registros</td></tr>
+                        ) : (
+                          teacherHistory.antiguos.map((t, i) => (
+                            <tr key={i}>
+                              <td><div style={{ fontWeight: 600 }}>{t.nombre} {t.apellido}</div></td>
+                              <td style={{ textAlign: 'center' }}><span className="badge badge-gray">{t.anioInicio}</span></td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>
