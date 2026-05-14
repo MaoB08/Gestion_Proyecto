@@ -1002,7 +1002,7 @@ export default function TeacherDashboard() {
                 {activeClasses.map(cl => {
                   const course = myCourses.find(c => c.id === cl.courseId)
                   return (
-                    <div key={cl.id} className="lobby-card">
+                    <div key={cl._id || cl.id} className="lobby-card">
                       <div className="lobby-icon" style={{ background: '#FEF2F2' }}>🔴</div>
                       <div className="lobby-info">
                         <div className="lobby-title">{cl.title}</div>
@@ -1012,7 +1012,7 @@ export default function TeacherDashboard() {
                           <span>❓ {(cl.questions || []).filter(q => q.status === 'pending').length} preguntas pendientes</span>
                         </div>
                       </div>
-                      <button className="btn btn-primary" onClick={() => enterClass(cl.id)}>→ Entrar</button>
+                      <button className="btn btn-primary" onClick={() => enterClass(cl._id || cl.id)}>→ Entrar</button>
                     </div>
                   )
                 })}

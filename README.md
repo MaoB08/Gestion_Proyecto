@@ -1,6 +1,6 @@
 # Gestion Proyecto — Monorepo
 
-Plataforma de gestión educativa con aulas en vivo, transcripción, IA con Gemini y roles de Admin / Profesor / Estudiante.
+Plataforma de gestión educativa con aulas en vivo, transcripción mediante IA (Gemini), tracking de atención, analítica geoespacial, demográfica y gestión integral para roles de Admin / Profesor / Estudiante.
 
 ## Estructura del proyecto
 

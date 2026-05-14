@@ -2,17 +2,18 @@ const express = require('express');
 const bcrypt  = require('bcryptjs');
 const router  = express.Router();
 const Student = require('../models/Student');
+const Class   = require('../models/Class');
 
 // ── POST /api/students/register ───────────────────────────────────────────────
 router.post('/register', async (req, res) => {
   try {
     const {
       documento, nombre, apellido, anioNacimiento,
-      telefono, correo, clave, institucion,
+      telefono, correo, clave, sexo, institucion,
     } = req.body;
 
     // ── [1] Required fields ────────────────────────────────────────────────────
-    const required = { documento, nombre, apellido, anioNacimiento, telefono, correo, clave, institucion };
+    const required = { documento, nombre, apellido, anioNacimiento, telefono, correo, clave, sexo, institucion };
     const missing  = Object.entries(required).find(([, v]) => !v || v.toString().trim() === '');
     if (missing) {
       return res.status(400).json({ code: 'EMPTY_FIELDS', message: 'Este campo es obligatorio', field: missing[0] });
@@ -41,6 +42,7 @@ router.post('/register', async (req, res) => {
       telefono,
       correo:         correo.toLowerCase(),
       clave:          hashedClave,
+      sexo,
       institucion:    institucion.trim(),
     });
 
@@ -57,6 +59,63 @@ router.post('/register', async (req, res) => {
       const field   = Object.keys(err.keyPattern)[0];
       return res.status(409).json({ code: 'DUP_KEY', message: 'El dato ya se encuentra registrado', field });
     }
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── GET /api/students/stats — aggregated stats for admin dashboard charts ─────
+// sexo: from Student.sexo field
+// jornada: derived from Class.attendance[].joinedAt hour
+//   Mañana    → 06:00–11:59
+//   Medio Día → 12:00–13:59
+//   Tarde     → 14:00–17:59
+//   Noche     → 18:00–05:59
+router.get('/stats', async (_req, res) => {
+  try {
+    // 1. Gender distribution
+    const sexoStats = await Student.aggregate([
+      { $group: { _id: '$sexo', count: { $sum: 1 } } },
+      { $sort:  { _id: 1 } },
+    ]);
+
+    // 2. Jornada distribution — only today's attendance (resets daily at midnight)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const jornadaStats = await Class.aggregate([
+      // Unwind attendance array to get individual join records
+      { $unwind: '$attendance' },
+      // Filter only today's attendance records
+      { $match: {
+        'attendance.joinedAt': { $gte: todayStart, $lte: todayEnd },
+      }},
+      // Extract the hour from joinedAt
+      { $addFields: {
+        hour: { $hour: '$attendance.joinedAt' },
+      }},
+      // Classify into jornada based on hour
+      { $addFields: {
+        jornada: {
+          $switch: {
+            branches: [
+              { case: { $and: [{ $gte: ['$hour',  6] }, { $lt: ['$hour', 12] }] }, then: 'Mañana' },
+              { case: { $and: [{ $gte: ['$hour', 12] }, { $lt: ['$hour', 14] }] }, then: 'Medio Día' },
+              { case: { $and: [{ $gte: ['$hour', 14] }, { $lt: ['$hour', 18] }] }, then: 'Tarde' },
+            ],
+            default: 'Noche',
+          },
+        },
+      }},
+      // Count unique students per jornada (a student may attend multiple classes)
+      { $group: { _id: { jornada: '$jornada', userId: '$attendance.userId' } } },
+      { $group: { _id: '$_id.jornada', count: { $sum: 1 } } },
+      { $sort:  { _id: 1 } },
+    ]);
+
+    res.json({ sexo: sexoStats, jornada: jornadaStats });
+  } catch (err) {
     res.status(500).json({ message: err.message });
   }
 });

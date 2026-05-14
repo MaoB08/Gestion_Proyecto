@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext'
 
 const EMPTY = {
   documento: '', nombre: '', apellido: '', anioNacimiento: '',
-  telefono: '', correo: '', clave: '', confirmarClave: '', institucion: '',
+  telefono: '', correo: '', clave: '', confirmarClave: '', sexo: '', institucion: '',
 }
 
 // ── Field must live OUTSIDE RegisterPage so React doesn't remount it on each
@@ -93,6 +93,9 @@ export default function RegisterPage() {
     if (!form.institucion.trim())
       e.institucion = 'Este campo es obligatorio'
 
+    if (!form.sexo)
+      e.sexo = 'Este campo es obligatorio'
+
     return e
   }
 
@@ -115,6 +118,7 @@ export default function RegisterPage() {
           telefono:       form.telefono,
           correo:         form.correo.toLowerCase(),
           clave:          form.clave,
+          sexo:           form.sexo,
           institucion:    form.institucion.trim(),
         }),
       })
@@ -185,14 +189,32 @@ export default function RegisterPage() {
             <Field {...fieldProps} label="Apellido" fieldName="apellido" placeholder="Ej: Spinell" maxLength={32} />
           </div>
 
-          {/* Row: Año nacimiento + Institución */}
+          {/* Row: Año nacimiento + Sexo */}
           <div className="form-row">
             <Field {...fieldProps} label="Año de nacimiento" fieldName="anioNacimiento"
               placeholder="Ej: 2001" hint="4 dígitos numéricos"
               inputMode="numeric" maxLength={4} />
-            <Field {...fieldProps} label="Institución académica" fieldName="institucion"
-              placeholder="Ej: Universidad Nacional" />
+            <div className="form-group">
+              <label className="form-label">
+                Sexo <span style={{ color: 'var(--danger)' }}>*</span>
+              </label>
+              <select
+                className={`form-input${errors.sexo ? ' input-error' : ''}`}
+                value={form.sexo}
+                onChange={onChange('sexo')}
+              >
+                <option value="">Seleccionar...</option>
+                <option value="Masculino">Masculino</option>
+                <option value="Femenino">Femenino</option>
+                <option value="Otro">Otro</option>
+              </select>
+              {errors.sexo && <span className="form-error" style={{ fontSize: 12 }}>⚠️ {errors.sexo}</span>}
+            </div>
           </div>
+
+          {/* Institución */}
+          <Field {...fieldProps} label="Institución académica" fieldName="institucion"
+            placeholder="Ej: Universidad Nacional" />
 
           {/* Correo */}
           <Field {...fieldProps} label="Correo electrónico" fieldName="correo"

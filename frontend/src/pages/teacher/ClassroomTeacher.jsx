@@ -14,7 +14,32 @@ export default function ClassroomTeacher({ classId }) {
     launchAttentionCheck, completeAttentionCheck,
   } = useApp()
 
-  const cls = getClassById(classId)
+  const clsContext = getClassById(classId)
+  const [dynamicCls, setDynamicCls] = useState(null)
+  const [fetchError, setFetchError] = useState(null)
+  const [isFetching, setIsFetching] = useState(false)
+  
+  useEffect(() => {
+    if (!clsContext && classId && !dynamicCls && !fetchError && !isFetching) {
+      setIsFetching(true)
+      fetch(`http://localhost:3001/api/classes/${classId}`)
+        .then(r => r.json())
+        .then(data => {
+          setIsFetching(false)
+          if (data && (data._id || data.id)) {
+            setDynamicCls({ ...data, id: data._id || data.id, courseId: data.courseId?._id || data.courseId })
+          } else {
+            setFetchError('La clase no existe en el servidor.')
+          }
+        })
+        .catch(err => {
+          setIsFetching(false)
+          setFetchError(err.message)
+        })
+    }
+  }, [classId, clsContext, dynamicCls, fetchError, isFetching])
+
+  const cls = clsContext || dynamicCls
   const course = cls ? getCourseById(cls.courseId) : null
 
   // Transcription state
@@ -276,7 +301,22 @@ export default function ClassroomTeacher({ classId }) {
     setAiLoading(false)
   }
 
-  if (!cls) return <div style={{ padding: 40 }}>Clase no encontrada.</div>
+  if (!cls) {
+    return (
+      <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-main)' }}>
+        {isFetching ? (
+          <h2>⏳ Cargando información de la clase...</h2>
+        ) : (
+          <div>
+            <h2>❌ Clase no encontrada</h2>
+            <p>Error: {fetchError || 'No se encontró la clase localmente.'}</p>
+            <p>Class ID buscado: {classId}</p>
+            <button className="btn btn-primary mt-4" onClick={() => { setActiveClassId(null); setActivePage('dashboard') }}>Volver al panel</button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   const pendingQ = (cls.questions || []).filter(q => q.status === 'pending')
   const answeredQ = (cls.questions || []).filter(q => q.status === 'answered')

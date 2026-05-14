@@ -9,7 +9,7 @@ export function Avatar({ user, size = 'md', style = {} }) {
   const cls = `avatar avatar-${size}`
   return (
     <div className={cls} style={{ background: bg, ...style }}>
-      {user?.avatar || (user?.name?.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase())}
+      {user?.avatar || (user?.name ? user.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '??')}
     </div>
   )
 }
