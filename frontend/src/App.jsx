@@ -22,6 +22,7 @@ import ClassroomStudent from './pages/student/ClassroomStudent'
 
 // Shared layout
 import Sidebar from './components/Sidebar'
+import { ErrorBoundary } from './ErrorBoundary'
 
 // SVG Icons for Optimization
 const OptimizationIcon = () => (
@@ -79,9 +80,11 @@ function InnerApp() {
       }} />
       <Sidebar />
       <div className="main-content">
-        {currentUser.role === 'admin'   && <AdminRouter   page={activePage} classId={activeClassId} />}
-        {currentUser.role === 'teacher' && <TeacherRouter page={activePage} classId={activeClassId} />}
-        {currentUser.role === 'student' && <StudentRouter page={activePage} classId={activeClassId} />}
+        <ErrorBoundary>
+          {currentUser.role === 'admin'   && <AdminRouter   page={activePage} classId={activeClassId} />}
+          {currentUser.role === 'teacher' && <TeacherRouter page={activePage} classId={activeClassId} />}
+          {currentUser.role === 'student' && <StudentRouter page={activePage} classId={activeClassId} />}
+        </ErrorBoundary>
       </div>
     </div>
   )

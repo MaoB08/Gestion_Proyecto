@@ -38,13 +38,36 @@ export default function UsersPage() {
   const [dbUsers, setDbUsers]     = useState([])
   const [loadingDb, setLoadingDb] = useState(true)
   const [dbError, setDbError]     = useState('')
+  const [limit, setLimit]         = useState(10)
+  const [page, setPage]           = useState(1)
+  const [filter, setFilter]       = useState('all')
+  const [search, setSearch]       = useState('')
+  const [serverCounts, setServerCounts] = useState({ all: 0, admin: 0, teacher: 0, student: 0 })
+
+  useEffect(() => {
+    setPage(1)
+  }, [filter, search, limit])
 
   const fetchUsers = useCallback(async () => {
     setLoadingDb(true)
     setDbError('')
     try {
-      const res  = await fetch(`${API}/api/users/all`)
+      const url = new URL(`${API}/api/users/all`)
+      url.searchParams.append('limit', limit)
+      url.searchParams.append('page', page)
+      if (filter !== 'all') url.searchParams.append('role', filter)
+      if (search) url.searchParams.append('search', search)
+
+      const res  = await fetch(url.toString())
       if (!res.ok) throw new Error(`Error ${res.status}`)
+      
+      setServerCounts({
+        all: parseInt(res.headers.get('X-Count-All') || '0'),
+        admin: parseInt(res.headers.get('X-Count-Admin') || '0'),
+        teacher: parseInt(res.headers.get('X-Count-Teacher') || '0'),
+        student: parseInt(res.headers.get('X-Count-Student') || '0'),
+      })
+
       const data = await res.json()
       setDbUsers(data)
     } catch {
@@ -52,32 +75,30 @@ export default function UsersPage() {
     } finally {
       setLoadingDb(false)
     }
-  }, [])
+  }, [limit, filter, search, page])
 
-  useEffect(() => { fetchUsers() }, [fetchUsers])
+  useEffect(() => { 
+    const timer = setTimeout(() => {
+      fetchUsers()
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [fetchUsers])
 
   // ── Filters ────────────────────────────────────────────────────────────────
-  const [filter, setFilter] = useState('all')
-  const [search, setSearch] = useState('')
+
+  const calcCount = (total) => limit !== 'Todos' && limit > 0 ? Math.min(total, limit) : total;
 
   const counts = {
-    all:     dbUsers.length,
-    admin:   dbUsers.filter(u => u.role === 'admin').length,
-    teacher: dbUsers.filter(u => u.role === 'teacher').length,
-    student: dbUsers.filter(u => u.role === 'student').length,
+    all:     calcCount(serverCounts.all),
+    admin:   calcCount(serverCounts.admin),
+    teacher: calcCount(serverCounts.teacher),
+    student: calcCount(serverCounts.student),
   }
 
-  const filtered = dbUsers.filter(u => {
-    if (filter !== 'all' && u.role !== filter) return false
-    const q = search.toLowerCase()
-    return (
-      (u.name || '').toLowerCase().includes(q) ||
-      (u.email || '').toLowerCase().includes(q) ||
-      (u.documento || '').includes(q) ||
-      (u.areaDominio || '').toLowerCase().includes(q) ||
-      (u.institucion || '').toLowerCase().includes(q)
-    )
-  })
+  const currentTotal = filter === 'all' ? serverCounts.all : serverCounts[filter]
+  const totalPages = (limit > 0 && limit !== 'Todos') ? Math.max(1, Math.ceil(currentTotal / limit)) : 1
+
+  const filtered = dbUsers
 
   // ── Modals ─────────────────────────────────────────────────────────────────
   const [modal, setModal]       = useState(null)
@@ -206,14 +227,24 @@ export default function UsersPage() {
           <div className="card-body">
             {/* Filtros */}
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div className="search-wrap" style={{ flex: 1 }}>
-                <span className="search-icon">🔍</span>
-                <input
-                  className="form-input"
-                  placeholder="Buscar usuario..."
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                />
+              <div className="search-wrap" style={{ flex: 1, display: 'flex', gap: 12 }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <span className="search-icon">🔍</span>
+                  <input
+                    className="form-input"
+                    placeholder="Buscar usuario..."
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                  />
+                </div>
+                <div style={{ width: 160 }}>
+                  <select className="form-select" value={limit} onChange={e => setLimit(e.target.value === 'Todos' ? 'Todos' : Number(e.target.value))}>
+                    <option value={10}>10 por página</option>
+                    <option value={25}>25 por página</option>
+                    <option value={50}>50 por página</option>
+                    <option value="Todos">Todos</option>
+                  </select>
+                </div>
               </div>
               {['all', 'admin', 'teacher', 'student'].map(r => (
                 <button
@@ -279,6 +310,28 @@ export default function UsersPage() {
                   ))}
                 </tbody>
               </table>
+            )}
+
+            {!loadingDb && limit !== 'Todos' && totalPages > 1 && (
+              <div style={{ display: 'flex', justifyContent: 'center', gap: 10, marginTop: 20 }}>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  disabled={page === 1} 
+                  onClick={() => setPage(p => Math.max(1, p - 1))}
+                >
+                  Anterior
+                </button>
+                <span style={{ display: 'flex', alignItems: 'center', fontSize: 13, color: 'var(--text-muted)' }}>
+                  Página {page} de {totalPages}
+                </span>
+                <button 
+                  className="btn btn-secondary btn-sm" 
+                  disabled={page === totalPages} 
+                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                >
+                  Siguiente
+                </button>
+              </div>
             )}
           </div>
         </div>

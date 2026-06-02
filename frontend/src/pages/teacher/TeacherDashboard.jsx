@@ -1,37 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../../components/Sidebar'
+import L from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 
-const THUMB = { 
-  Informática: '💻', 
-  Matemáticas: '📐', 
-  Ciencias: '🔬', 
-  Historia: '📚', 
-  Idiomas: '🌍', 
-  Arte: '🎨', 
-  Ingeniería: '⚙️', 
-  General: '📖' 
+const THUMB = {
+  Informática: '💻',
+  Matemáticas: '📐',
+  Ciencias: '🔬',
+  Historia: '📚',
+  Idiomas: '🌍',
+  Arte: '🎨',
+  Ingeniería: '⚙️',
+  General: '📖'
 }
 
 function CreateClassModal({ courseId, onClose }) {
   const { createClass, activateClass, setActivePage, setActiveClassId } = useApp()
-  const [form, setForm] = useState({ 
-    title: '', 
-    description: '', 
-    date: new Date().toISOString().split('T')[0], 
-    startTime: '', 
-    endTime: '', 
-    sessionType: 'Live' 
+  const [form, setForm] = useState({
+    title: '',
+    description: '',
+    date: new Date().toISOString().split('T')[0],
+    startTime: '',
+    endTime: '',
+    sessionType: 'Live'
   })
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleCreate = async () => {
-    if (!form.title || !form.date || !form.startTime || !form.endTime) { 
-      setError('Todos los campos marcados con (*) son obligatorios'); 
-      return 
+    if (!form.title || !form.date || !form.startTime || !form.endTime) {
+      setError('Todos los campos marcados con (*) son obligatorios');
+      return
     }
-    
+
     // Time validation (quick FE check)
     const now = new Date()
     const [sy, sm, sd] = form.date.split('-').map(Number)
@@ -192,7 +194,7 @@ function ManageContentsModal({ courseId, onClose }) {
           <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
         </div>
         <div className="modal-body" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, maxHeight: '70vh', overflowY: 'auto' }}>
-          
+
           <div>
             <h4 style={{ marginBottom: 12 }}>Contenidos Publicados ({contents.length})</h4>
             {contents.length === 0 ? (
@@ -214,12 +216,12 @@ function ManageContentsModal({ courseId, onClose }) {
                     {cnt.description && <div style={{ fontSize: 12, marginTop: 6 }}>{cnt.description}</div>}
                     {cnt.fileUrl && (
                       <div style={{ marginTop: 10 }}>
-                        <a 
-                          href={`http://localhost:3001${cnt.fileUrl}`} 
+                        <a
+                          href={`http://localhost:3001${cnt.fileUrl}`}
                           download={cnt.originalName || cnt.title}
-                          target="_blank" 
-                          rel="noreferrer" 
-                          className="btn btn-sm btn-primary" 
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-primary"
                           style={{ fontSize: 11, width: '100%', justifyContent: 'center' }}
                         >
                           ⬇️ Descargar: {cnt.originalName || 'Archivo'}
@@ -237,7 +239,7 @@ function ManageContentsModal({ courseId, onClose }) {
               <h4 style={{ marginBottom: 12 }}>Agregar Nuevo Contenido</h4>
               <div className="form-group">
                 <label className="form-label">TÍTULO *</label>
-                <input className="form-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Ej: Lectura Semana 1" maxLength="100"/>
+                <input className="form-input" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} placeholder="Ej: Lectura Semana 1" maxLength="100" />
               </div>
               <div className="form-group">
                 <label className="form-label">TIPO *</label>
@@ -264,9 +266,9 @@ function ManageContentsModal({ courseId, onClose }) {
             </div>
           ) : (
             <div style={{ background: '#F9FAFB', padding: 20, borderRadius: 'var(--radius-md)', border: '1px dashed var(--border)', textAlign: 'center' }}>
-               <div style={{ fontSize: 32, marginBottom: 10 }}>🔒</div>
-               <div style={{ fontWeight: 600 }}>Gestión Deshabilitada</div>
-               <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Este curso no está <b>Activo</b>. Solo puedes visualizar o eliminar contenidos existentes.</p>
+              <div style={{ fontSize: 32, marginBottom: 10 }}>🔒</div>
+              <div style={{ fontWeight: 600 }}>Gestión Deshabilitada</div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)' }}>Este curso no está <b>Activo</b>. Solo puedes visualizar o eliminar contenidos existentes.</p>
             </div>
           )}
 
@@ -282,7 +284,7 @@ function ManageContentsModal({ courseId, onClose }) {
 function CourseClassesModal({ courseId, onClose }) {
   const { courses, getClassesForCourse, fetchClassesByCourse } = useApp()
   const course = courses.find(c => (c.id === courseId || c._id === courseId))
-  
+
   useEffect(() => {
     fetchClassesByCourse(courseId)
   }, [courseId])
@@ -334,6 +336,162 @@ function CourseClassesModal({ courseId, onClose }) {
   )
 }
 
+// ── Advanced Grades Modal ────────────────────────────────────────────────────
+function AdvancedGradesModal({ courseId, onClose }) {
+  const [activeTier, setActiveTier] = useState('todas')  // 'todas' | 'inferior' | 'estandar' | 'sobresaliente'
+  const [results, setResults]       = useState([])
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState('')
+
+  const TIERS = [
+    { key: 'todas',         label: '📚 Todas las notas',        color: '#2563EB', bg: '#EFF6FF', border: '#DBEAFE' },
+    { key: 'no-entregados', label: '❌ No entregados',         color: '#4B5563', bg: '#F3F4F6', border: '#E5E7EB' },
+    { key: 'inferior',      label: '📉 Notas inferiores',      color: '#DC2626', bg: '#FEF2F2', border: '#FECACA' },
+    { key: 'estandar',      label: '📊 Notas estándar',         color: '#D97706', bg: '#FFFBEB', border: '#FDE68A' },
+    { key: 'sobresaliente', label: '🏆 Notas sobresalientes',   color: '#059669', bg: '#ECFDF5', border: '#A7F3D0' },
+  ]
+
+  useEffect(() => {
+    fetchTier('todas')
+  }, [courseId])
+
+  const fetchTier = async (tier) => {
+    setActiveTier(tier)
+    setLoading(true)
+    setError('')
+    setResults([])
+    try {
+      const res = await fetch(`http://localhost:3001/api/grades/course/${courseId}/tier?tier=${tier}`)
+      if (!res.ok) {
+        const json = await res.json()
+        setError(json.message || 'Error al consultar')
+      } else {
+        setResults(await res.json())
+      }
+    } catch {
+      setError('No se pudo conectar al servidor')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const activeMeta = TIERS.find(t => t.key === activeTier)
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 800 }}>
+        <div className="modal-header purple">
+          <div className="modal-title" style={{ color: 'white' }}>📊 Vista avanzada de notas</div>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
+        </div>
+
+        <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+          {/* Tier selector buttons */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+            {TIERS.map(t => (
+              <button
+                key={t.key}
+                onClick={() => fetchTier(t.key)}
+                style={{
+                  flex: 1,
+                  padding: '10px 8px',
+                  borderRadius: 'var(--radius-md)',
+                  border: `2px solid ${activeTier === t.key ? t.color : t.border}`,
+                  background: activeTier === t.key ? t.color : t.bg,
+                  color: activeTier === t.key ? 'white' : t.color,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Results */}
+          {!activeTier && (
+            <div className="empty-state">
+              <span className="empty-state-icon">📊</span>
+              <div className="empty-state-title">Selecciona un rango</div>
+              <div className="empty-state-desc">Elige un botón para consultar las notas correspondientes.</div>
+            </div>
+          )}
+
+          {loading && (
+            <div className="empty-state">
+              <div className="empty-state-title">Consultando base de datos...</div>
+            </div>
+          )}
+
+          {error && !loading && (
+            <div style={{ background: 'var(--danger-bg)', border: '1px solid #FECACA', borderRadius: 'var(--radius-sm)', padding: '10px 14px', color: 'var(--danger)', fontSize: 13 }}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          {!loading && !error && activeTier && (
+            results.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">{activeMeta?.key === 'inferior' ? '🎉' : '📭'}</span>
+                <div className="empty-state-title">Sin resultados</div>
+                <div className="empty-state-desc">No hay calificaciones en este rango para el curso.</div>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  {results.length} resultado(s) — ordenados de menor a mayor nota
+                </div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="data-table" style={{ fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th>Actividad</th>
+                        <th>Estudiante</th>
+                        <th style={{ textAlign: 'center' }}>Nota</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {results.map((g, i) => (
+                        <tr key={g._id || i}>
+                          <td>{g.contentId?.title || '-'}</td>
+                          <td>
+                            <div style={{ fontWeight: 600 }}>
+                              {g.studentId?.nombre} {g.studentId?.apellido}
+                            </div>
+                            <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{g.studentId?.documento}</div>
+                          </td>
+                          <td style={{ textAlign: 'center' }}>
+                            <span
+                              className={`badge ${
+                                g.grade >= 4.0 ? 'badge-success' :
+                                g.grade >= 3.0 ? 'badge-warning' :
+                                'badge-danger'
+                              }`}
+                              style={{ fontSize: 13, fontWeight: 700 }}
+                            >
+                              {g.grade.toFixed(1)}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            )
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ManageGradesView({ courseId, onBack }) {
   const { courses, users, grades, saveGrade, fetchGradesByCourse } = useApp()
   const [selectedActivityId, setSelectedActivityId] = useState('')
@@ -342,6 +500,7 @@ function ManageGradesView({ courseId, onBack }) {
   const [feedback, setFeedback] = useState('')
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState({ text: '', type: '' })
+  const [showAdvanced, setShowAdvanced] = useState(false)
 
   const course = courses.find(c => (c.id === courseId || c._id === courseId))
   const activities = (course?.contents || []).filter(cnt => cnt.type === 'Actividad')
@@ -382,8 +541,8 @@ function ManageGradesView({ courseId, onBack }) {
   }
 
   const getStudentGrade = (studentId, activityId) => {
-    return grades.find(g => 
-      String(g.studentId?._id || g.studentId) === String(studentId) && 
+    return grades.find(g =>
+      String(g.studentId?._id || g.studentId) === String(studentId) &&
       String(g.contentId) === String(activityId)
     )
   }
@@ -398,7 +557,8 @@ function ManageGradesView({ courseId, onBack }) {
   )
 
   return (
-    <div className="card fade-in">
+    <>
+      <div className="card fade-in">
       <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <button className="btn btn-ghost btn-sm" onClick={onBack} style={{ marginBottom: 8, padding: 0, color: 'var(--primary)' }}>← Volver a cursos</button>
@@ -406,7 +566,7 @@ function ManageGradesView({ courseId, onBack }) {
           <div className="card-subtitle">Registra y modifica las notas de tus estudiantes</div>
         </div>
       </div>
-      
+
       <div className="card-body">
         {activities.length === 0 ? (
           <div className="empty-state">
@@ -419,7 +579,7 @@ function ManageGradesView({ courseId, onBack }) {
             {/* Formulario de Calificación */}
             <div style={{ background: 'var(--bg-page)', padding: 20, borderRadius: 'var(--radius-md)', border: '1px solid var(--border)' }}>
               <h4 style={{ marginBottom: 16 }}>Ingresar Calificación</h4>
-              
+
               <div className="form-group">
                 <label className="form-label">ACTIVIDAD *</label>
                 <select className="form-select" value={selectedActivityId} onChange={e => setSelectedActivityId(e.target.value)}>
@@ -442,12 +602,12 @@ function ManageGradesView({ courseId, onBack }) {
 
               <div className="form-group">
                 <label className="form-label">NOTA (0.0 - 5.0) *</label>
-                <input 
-                  type="number" 
-                  className="form-input" 
-                  step="0.1" 
-                  min="0" 
-                  max="5" 
+                <input
+                  type="number"
+                  className="form-input"
+                  step="0.1"
+                  min="0"
+                  max="5"
                   value={gradeValue}
                   onChange={e => setGradeValue(e.target.value)}
                   placeholder="Ej: 4.5"
@@ -456,8 +616,8 @@ function ManageGradesView({ courseId, onBack }) {
 
               <div className="form-group">
                 <label className="form-label">RETROALIMENTACIÓN</label>
-                <textarea 
-                  className="form-textarea" 
+                <textarea
+                  className="form-textarea"
                   value={feedback}
                   onChange={e => setFeedback(e.target.value)}
                   placeholder="Opcional..."
@@ -466,10 +626,10 @@ function ManageGradesView({ courseId, onBack }) {
               </div>
 
               {message.text && (
-                <div style={{ 
-                  padding: 10, 
-                  borderRadius: 6, 
-                  fontSize: 13, 
+                <div style={{
+                  padding: 10,
+                  borderRadius: 6,
+                  fontSize: 13,
                   marginBottom: 15,
                   background: message.type === 'success' ? '#DEF7EC' : '#FDE8E8',
                   color: message.type === 'success' ? '#03543F' : '#9B1C1C',
@@ -479,8 +639,8 @@ function ManageGradesView({ courseId, onBack }) {
                 </div>
               )}
 
-              <button 
-                className="btn btn-primary w-full" 
+              <button
+                className="btn btn-primary w-full"
                 onClick={handleSave}
                 disabled={loading}
                 style={{ height: 45, fontWeight: 600, color: 'white' }}
@@ -491,7 +651,16 @@ function ManageGradesView({ courseId, onBack }) {
 
             {/* Tabla de Calificaciones Actuales */}
             <div>
-              <h4 style={{ marginBottom: 16 }}>Cuadro de Estudiantes ({enrolledStudents.length})</h4>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <h4 style={{ margin: 0 }}>Cuadro de Estudiantes ({enrolledStudents.length})</h4>
+                <button
+                  className="btn btn-secondary"
+                  style={{ fontSize: 13, height: 36 }}
+                  onClick={() => setShowAdvanced(true)}
+                >
+                  📊 Vista avanzada
+                </button>
+              </div>
               <div style={{ overflowX: 'auto' }}>
                 <table className="data-table" style={{ fontSize: 13 }}>
                   <thead>
@@ -549,14 +718,211 @@ function ManageGradesView({ courseId, onBack }) {
         )}
       </div>
     </div>
+      {showAdvanced && (
+        <AdvancedGradesModal courseId={courseId} onClose={() => setShowAdvanced(false)} />
+      )}
+    </>
+  )
+}
+
+// ── GeoMap Modal ────────────────────────────────────────────────────────────
+function GeoMapModal({ students, onClose }) {
+  const mapRef = useRef(null)
+  const mapInstanceRef = useRef(null)
+
+  // Only students with valid location
+  const geoStudents = students.filter(
+    s => s.location?.coordinates?.length === 2
+  )
+
+  useEffect(() => {
+    if (!mapRef.current || mapInstanceRef.current) return
+
+    // Fix default marker icon path issue with bundlers
+    delete L.Icon.Default.prototype._getIconUrl
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+      iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+      shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    })
+
+    const map = L.map(mapRef.current, { zoomControl: true })
+    mapInstanceRef.current = map
+
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+    }).addTo(map)
+
+    if (geoStudents.length === 0) {
+      map.setView([4.6097, -74.0817], 5) // Colombia center fallback
+      return
+    }
+
+    const bounds = []
+    geoStudents.forEach(st => {
+      const [lng, lat] = st.location.coordinates // GeoJSON: [longitude, latitude]
+      const name = st.nombre && st.apellido
+        ? `${st.nombre} ${st.apellido}`
+        : (st.name || 'Estudiante')
+
+      const marker = L.marker([lat, lng]).addTo(map)
+      marker.bindTooltip(name, { permanent: true, direction: 'top', offset: [0, -10] })
+      marker.bindPopup(`<b>${name}</b><br/><span style="font-size:12px">Lat: ${lat.toFixed(5)}<br/>Lng: ${lng.toFixed(5)}</span>`)
+      bounds.push([lat, lng])
+    })
+
+    if (bounds.length === 1) {
+      map.setView(bounds[0], 13)
+    } else {
+      map.fitBounds(bounds, { padding: [40, 40] })
+    }
+
+    return () => {
+      map.remove()
+      mapInstanceRef.current = null
+    }
+  }, [])
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        className="modal modal-lg"
+        onClick={e => e.stopPropagation()}
+        style={{ maxWidth: 900, width: '95vw' }}
+      >
+        <div className="modal-header" style={{ background: 'linear-gradient(135deg,#0f766e,#0d9488)', color: 'white' }}>
+          <div className="modal-title" style={{ color: 'white' }}>🌐 Vista Geoespacial de Estudiantes</div>
+          <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
+        </div>
+
+        <div className="modal-body" style={{ padding: 0 }}>
+          {geoStudents.length === 0 ? (
+            <div className="empty-state" style={{ padding: 60 }}>
+              <span className="empty-state-icon">📍</span>
+              <div className="empty-state-title">Sin ubicaciones registradas</div>
+              <div className="empty-state-desc">
+                Ningún estudiante de este curso ha iniciado sesión desde un dispositivo con ubicación habilitada.
+              </div>
+            </div>
+          ) : (
+            <>
+              <div style={{
+                padding: '10px 16px',
+                background: '#F0FDF4',
+                borderBottom: '1px solid #BBF7D0',
+                fontSize: 13,
+                color: '#166534',
+                display: 'flex',
+                gap: 6,
+                alignItems: 'center'
+              }}>
+                📍 Mostrando {geoStudents.length} de {students.length} estudiantes con ubicación registrada
+              </div>
+              <div ref={mapRef} style={{ height: 480, width: '100%' }} />
+            </>
+          )}
+        </div>
+
+        <div className="modal-footer">
+          <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CourseStudentsModal({ courseId, onClose }) {
+  const { courses } = useApp()
+  const course = courses.find(c => (c.id === courseId || c._id === courseId))
+  const [enrolledStudents, setEnrolledStudents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showMap, setShowMap] = useState(false)
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        // Esta llamada espera que el backend resuelva la agregación con $project
+        const res = await fetch(`http://localhost:3001/api/courses/${courseId}/students`)
+        if (res.ok) {
+          const data = await res.json()
+          setEnrolledStudents(data)
+        }
+      } catch (err) {
+        console.error('Error al obtener estudiantes', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchStudents()
+  }, [courseId])
+
+  return (
+    <>
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal modal-lg" onClick={e => e.stopPropagation()} style={{ maxWidth: 800 }}>
+          <div className="modal-header purple">
+            <div className="modal-title" style={{ color: 'white' }}>📄 Estudiantes Inscritos: {course?.name}</div>
+            <button className="btn btn-ghost btn-sm" style={{ color: 'white' }} onClick={onClose}>✕</button>
+          </div>
+          <div className="modal-body" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+            {loading ? (
+              <div className="empty-state">
+                <div className="empty-state-title">Cargando estudiantes...</div>
+              </div>
+            ) : enrolledStudents.length === 0 ? (
+              <div className="empty-state">
+                <span className="empty-state-icon">👥</span>
+                <div className="empty-state-title">No hay estudiantes inscritos</div>
+                <div className="empty-state-desc">Aún no hay estudiantes en este curso.</div>
+              </div>
+            ) : (
+              <table className="data-table">
+                <thead>
+                  <tr><th>Nombre</th><th>Apellido</th><th>Correo</th></tr>
+                </thead>
+                <tbody>
+                  {enrolledStudents.map(st => {
+                    const parts = (st.nombre || st.name || '').split(' ')
+                    const nombre = parts[0] || '-'
+                    const apellido = st.apellido || parts.slice(1).join(' ') || '-'
+                    return (
+                      <tr key={st._id || st.id}>
+                        <td><div style={{ fontWeight: 600 }}>{nombre}</div></td>
+                        <td>{apellido}</td>
+                        <td>{st.correo || st.email || '-'}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+          <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => setShowMap(true)}
+              disabled={loading}
+            >
+              🌐 Vista geoespacial
+            </button>
+            <button className="btn btn-secondary" onClick={onClose}>Cerrar</button>
+          </div>
+        </div>
+      </div>
+      {showMap && (
+        <GeoMapModal students={enrolledStudents} onClose={() => setShowMap(false)} />
+      )}
+    </>
   )
 }
 
 export default function TeacherDashboard() {
-  const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData } = useApp()
+  const { currentUser, activePage, classes, courses, users, getCoursesForTeacher, getClassesForCourse, activateClass, updateCourse, setActivePage, setActiveClassId, refreshData, fetchActiveClassesByCourse } = useApp()
   const [showCreateModal, setShowCreateModal] = useState(null)
   const [showContentsModal, setShowContentsModal] = useState(null)
   const [showClassesModal, setShowClassesModal] = useState(null)
+  const [showStudentsModal, setShowStudentsModal] = useState(null)
   const [selectedCourseForGrades, setSelectedCourseForGrades] = useState(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -574,11 +940,22 @@ export default function TeacherDashboard() {
 
   const myCourses = getCoursesForTeacher(currentUser?.id) || []
   const myClasses = myCourses.flatMap(c => getClassesForCourse(c.id) || [])
-  const activeClasses = myClasses.filter(cl => cl.isActive)
-  const pastClasses   = myClasses.filter(cl => !cl.isActive && cl.savedTranscription)
+  
+  const [activeClassesDynamic, setActiveClassesDynamic] = useState([])
+
+  useEffect(() => {
+    if (myCourses.length > 0) {
+      Promise.all(myCourses.map(c => fetchActiveClassesByCourse(c.id || c._id))).then(results => {
+        setActiveClassesDynamic(results.flat())
+      })
+    }
+  }, [courses, classes])
+
+  const activeClasses = activeClassesDynamic
+  const pastClasses = myClasses.filter(cl => !cl.isActive && cl.savedTranscription)
 
   const enterClass = (classId) => {
-    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId))
+    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId)) || activeClassesDynamic.find(cl => String(cl.id || cl._id) === String(classId))
     if (cls && cls.startTime) {
       const [h, m] = cls.startTime.split(':')
       const start = new Date(currentTime)
@@ -598,10 +975,10 @@ export default function TeacherDashboard() {
         <>
           <div className="stats-grid">
             {[
-              { label: 'Mis Cursos',   value: myCourses.length,    icon: '📚', bg: '#EDE9FE', color: '#7C3AED' },
-              { label: 'Clases Dadas', value: myClasses.length,    icon: '🎓', bg: '#EFF6FF', color: '#2563EB' },
-              { label: 'En Vivo',      value: activeClasses.length, icon: '🔴', bg: '#FEF2F2', color: '#DC2626' },
-              { label: 'Guardadas',    value: pastClasses.length,  icon: '💾', bg: '#ECFDF5', color: '#059669' },
+              { label: 'Mis Cursos', value: myCourses.length, icon: '📚', bg: '#EDE9FE', color: '#7C3AED' },
+              { label: 'Clases Dadas', value: myClasses.length, icon: '🎓', bg: '#EFF6FF', color: '#2563EB' },
+              { label: 'En Vivo', value: activeClasses.length, icon: '🔴', bg: '#FEF2F2', color: '#DC2626' },
+              { label: 'Guardadas', value: pastClasses.length, icon: '💾', bg: '#ECFDF5', color: '#059669' },
             ].map(s => (
               <div className="stat-card" key={s.label}>
                 <div className="stat-card-top">
@@ -625,7 +1002,7 @@ export default function TeacherDashboard() {
                 {activeClasses.map(cl => {
                   const course = myCourses.find(c => c.id === cl.courseId)
                   return (
-                    <div key={cl.id} className="lobby-card">
+                    <div key={cl._id || cl.id} className="lobby-card">
                       <div className="lobby-icon" style={{ background: '#FEF2F2' }}>🔴</div>
                       <div className="lobby-info">
                         <div className="lobby-title">{cl.title}</div>
@@ -635,7 +1012,7 @@ export default function TeacherDashboard() {
                           <span>❓ {(cl.questions || []).filter(q => q.status === 'pending').length} preguntas pendientes</span>
                         </div>
                       </div>
-                      <button className="btn btn-primary" onClick={() => enterClass(cl.id)}>→ Entrar</button>
+                      <button className="btn btn-primary" onClick={() => enterClass(cl._id || cl.id)}>→ Entrar</button>
                     </div>
                   )
                 })}
@@ -664,15 +1041,14 @@ export default function TeacherDashboard() {
               <div className="course-grid">
                 {myCourses.map(c => {
                   const courseClasses = getClassesForCourse(c.id) || []
-                  const hasActive     = courseClasses.some(cl => cl.isActive)
+                  const hasActive = courseClasses.some(cl => cl.isActive)
                   return (
                     <div key={c.id || c._id} className="course-card slide-up" style={{ position: 'relative' }}>
                       <div style={{ position: 'absolute', top: 12, right: 12, zIndex: 5 }}>
-                        <span className={`badge ${
-                          c.estado === 'Activo' ? 'badge-success' : 
-                          c.estado === 'Pausado' ? 'badge-warning' : 
-                          c.estado === 'Desactivado' ? 'badge-danger' : 'badge-gray'
-                        }`} style={{ boxShadow: 'var(--shadow-sm)' }}>
+                        <span className={`badge ${c.estado === 'Activo' ? 'badge-success' :
+                          c.estado === 'Pausado' ? 'badge-warning' :
+                            c.estado === 'Desactivado' ? 'badge-danger' : 'badge-gray'
+                          }`} style={{ boxShadow: 'var(--shadow-sm)' }}>
                           {c.estado || 'Activo'}
                         </span>
                       </div>
@@ -700,13 +1076,20 @@ export default function TeacherDashboard() {
                         </div>
 
                         <div style={{ display: 'flex', gap: 8, flexDirection: 'column' }}>
+                          <button
+                            className="btn btn-secondary"
+                            style={{ width: '100%', height: 36, fontSize: 13 }}
+                            onClick={() => setShowStudentsModal(c.id || c._id)}
+                          >
+                            📄 Ver estudiantes
+                          </button>
                           <div style={{ display: 'flex', gap: 8 }}>
                             <button className="btn btn-secondary" style={{ flex: 1, height: 40 }} onClick={() => setShowContentsModal(c.id || c._id)}>
                               📑 Gestionar
                             </button>
-                            <button 
-                              className="btn btn-primary" 
-                              style={{ flex: 1, height: 40 }} 
+                            <button
+                              className="btn btn-primary"
+                              style={{ flex: 1, height: 40 }}
                               onClick={() => {
                                 if (hasActive) {
                                   const cl = activeClasses.find(cl => cl.courseId === (c.id || c._id))
@@ -720,8 +1103,8 @@ export default function TeacherDashboard() {
                               {hasActive ? '🔴 Unirse' : (c.estado === 'Activo' ? '➕ Nueva Sala' : '🚫 Bloqueado')}
                             </button>
                           </div>
-                          <button 
-                            className="btn btn-outline" 
+                          <button
+                            className="btn btn-outline"
                             style={{ width: '100%', height: 40, border: '1px solid var(--primary)', color: 'var(--primary)', marginBottom: 4 }}
                             onClick={() => {
                               setSelectedCourseForGrades(c.id || c._id)
@@ -730,17 +1113,17 @@ export default function TeacherDashboard() {
                           >
                             📝 Calificaciones
                           </button>
-                          <button 
-                            className="btn btn-ghost" 
+                          <button
+                            className="btn btn-ghost"
                             style={{ width: '100%', height: 36, fontSize: 13, color: 'var(--text-secondary)' }}
                             onClick={() => setShowClassesModal(c.id || c._id)}
                           >
                             📋 Clases anteriores
                           </button>
                           {c.estado === 'Pausado' && (
-                            <button 
-                              className="btn btn-outline" 
-                              style={{ width: '100%', fontSize: 11, padding: '4px 8px' }} 
+                            <button
+                              className="btn btn-outline"
+                              style={{ width: '100%', fontSize: 11, padding: '4px 8px' }}
                               onClick={() => {
                                 updateCourse(c.id || c._id, { solicitarDespausa: true });
                                 alert('✅ Solicitud de despausa enviada al administrador.');
@@ -805,12 +1188,12 @@ export default function TeacherDashboard() {
 
     if (activePage === 'grades' && selectedCourseForGrades) {
       return (
-        <ManageGradesView 
-          courseId={selectedCourseForGrades} 
+        <ManageGradesView
+          courseId={selectedCourseForGrades}
           onBack={() => {
             setActivePage('my-courses')
             setSelectedCourseForGrades(null)
-          }} 
+          }}
         />
       )
     }
@@ -848,6 +1231,10 @@ export default function TeacherDashboard() {
 
       {showClassesModal && (
         <CourseClassesModal courseId={showClassesModal} onClose={() => setShowClassesModal(null)} />
+      )}
+
+      {showStudentsModal && (
+        <CourseStudentsModal courseId={showStudentsModal} onClose={() => setShowStudentsModal(null)} />
       )}
     </>
   )

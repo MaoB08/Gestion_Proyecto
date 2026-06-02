@@ -11,36 +11,61 @@ export default function ClassroomTeacher({ classId }) {
     getClassById, getCourseById,
     appendTranscription, clearTranscription, saveTranscription, setSummary,
     answerQuestion, deactivateClass, setActivePage, setActiveClassId,
-    launchAttentionCheck,
+    launchAttentionCheck, completeAttentionCheck,
   } = useApp()
 
-  const cls    = getClassById(classId)
-  const course  = cls ? getCourseById(cls.courseId) : null
+  const clsContext = getClassById(classId)
+  const [dynamicCls, setDynamicCls] = useState(null)
+  const [fetchError, setFetchError] = useState(null)
+  const [isFetching, setIsFetching] = useState(false)
+  
+  useEffect(() => {
+    if (!clsContext && classId && !dynamicCls && !fetchError && !isFetching) {
+      setIsFetching(true)
+      fetch(`http://localhost:3001/api/classes/${classId}`)
+        .then(r => r.json())
+        .then(data => {
+          setIsFetching(false)
+          if (data && (data._id || data.id)) {
+            setDynamicCls({ ...data, id: data._id || data.id, courseId: data.courseId?._id || data.courseId })
+          } else {
+            setFetchError('La clase no existe en el servidor.')
+          }
+        })
+        .catch(err => {
+          setIsFetching(false)
+          setFetchError(err.message)
+        })
+    }
+  }, [classId, clsContext, dynamicCls, fetchError, isFetching])
+
+  const cls = clsContext || dynamicCls
+  const course = cls ? getCourseById(cls.courseId) : null
 
   // Transcription state
   const [isRecording, setIsRecording] = useState(false)
-  const [isPaused, setIsPaused]        = useState(false)
-  const [interimText, setInterimText]  = useState('')
-  const recognitionRef                  = useRef(null)
-  const transcriptBottomRef            = useRef(null)
-  const chatEndRef                     = useRef(null)
+  const [isPaused, setIsPaused] = useState(false)
+  const [interimText, setInterimText] = useState('')
+  const recognitionRef = useRef(null)
+  const transcriptBottomRef = useRef(null)
+  const chatEndRef = useRef(null)
 
   // AI state
-  const [aiMessages, setAiMessages]  = useState([])
-  const [aiInput, setAiInput]        = useState('')
-  const [aiLoading, setAiLoading]    = useState(false)
-  const [aiTopics, setAiTopics]      = useState([])
-  const [showAI, setShowAI]          = useState(false)
+  const [aiMessages, setAiMessages] = useState([])
+  const [aiInput, setAiInput] = useState('')
+  const [aiLoading, setAiLoading] = useState(false)
+  const [aiTopics, setAiTopics] = useState([])
+  const [showAI, setShowAI] = useState(false)
 
   // Timer
-  const [elapsed, setElapsed]  = useState(0)
-  const timerRef               = useRef(null)
+  const [elapsed, setElapsed] = useState(0)
+  const timerRef = useRef(null)
 
   // Questions tab
-  const [qTab, setQTab]  = useState('pending')
+  const [qTab, setQTab] = useState('pending')
 
   // Attention check
-  const [acLoading, setAcLoading]   = useState(false)
+  const [acLoading, setAcLoading] = useState(false)
   const [viewCheckId, setViewCheckId] = useState(null)
 
   // Participants (used by attention check handler, must be defined before)
@@ -49,8 +74,8 @@ export default function ClassroomTeacher({ classId }) {
   // Derive active attention check from class data
   const activeCheck = (cls?.attentionChecks || []).find(ac => ac.status === 'active')
   const checkHistory = (cls?.attentionChecks || []).filter(ac => ac.status === 'completed').reverse()
-  const displayCheck = viewCheckId 
-    ? (cls?.attentionChecks || []).find(ac => (ac._id || ac.id) === viewCheckId) 
+  const displayCheck = viewCheckId
+    ? (cls?.attentionChecks || []).find(ac => (ac._id || ac.id) === viewCheckId)
     : activeCheck
 
   // Auto-complete timer for active check
@@ -59,12 +84,20 @@ export default function ClassroomTeacher({ classId }) {
     const launched = new Date(activeCheck.launchedAt).getTime()
     const timeout = (activeCheck.timeoutSecs || 30) * 1000
     const remaining = (launched + timeout) - Date.now()
-    if (remaining <= 0) return
+    if (remaining <= 0) {
+      if (completeAttentionCheck) {
+        completeAttentionCheck(classId, activeCheck._id || activeCheck.id)
+      }
+      return
+    }
     const timer = setTimeout(() => {
-      // Force refresh to pick up completed status
-    }, remaining + 1000)
+      // Force complete when time is up
+      if (completeAttentionCheck) {
+        completeAttentionCheck(classId, activeCheck._id || activeCheck.id)
+      }
+    }, remaining + 500)
     return () => clearTimeout(timer)
-  }, [activeCheck])
+  }, [activeCheck, classId, completeAttentionCheck])
 
   const handleLaunchCheck = async () => {
     if (acLoading) return
@@ -130,10 +163,10 @@ export default function ClassroomTeacher({ classId }) {
     if (!SpeechRecognition) { alert('Tu navegador no soporta reconocimiento de voz. Usa Chrome.'); return }
 
     const recognition = new SpeechRecognition()
-    recognition.continuous    = true
+    recognition.continuous = true
     recognition.interimResults = true
-    recognition.lang          = 'es-ES'
-    recognitionRef.current    = recognition
+    recognition.lang = 'es-ES'
+    recognitionRef.current = recognition
 
     recognition.onresult = (event) => {
       let interim = ''
@@ -162,7 +195,7 @@ export default function ClassroomTeacher({ classId }) {
     recognition.onend = () => {
       // Auto-restart if still recording and not paused
       if (recognitionRef.current === recognition && isRecording && !isPaused) {
-        try { recognition.start() } catch {}
+        try { recognition.start() } catch { }
       }
     }
 
@@ -268,11 +301,26 @@ export default function ClassroomTeacher({ classId }) {
     setAiLoading(false)
   }
 
-  if (!cls) return <div style={{ padding: 40 }}>Clase no encontrada.</div>
+  if (!cls) {
+    return (
+      <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-main)' }}>
+        {isFetching ? (
+          <h2>⏳ Cargando información de la clase...</h2>
+        ) : (
+          <div>
+            <h2>❌ Clase no encontrada</h2>
+            <p>Error: {fetchError || 'No se encontró la clase localmente.'}</p>
+            <p>Class ID buscado: {classId}</p>
+            <button className="btn btn-primary mt-4" onClick={() => { setActiveClassId(null); setActivePage('dashboard') }}>Volver al panel</button>
+          </div>
+        )}
+      </div>
+    )
+  }
 
-  const pendingQ     = (cls.questions || []).filter(q => q.status === 'pending')
-  const answeredQ    = (cls.questions || []).filter(q => q.status === 'answered')
-  const displayQ     = qTab === 'pending' ? pendingQ : answeredQ
+  const pendingQ = (cls.questions || []).filter(q => q.status === 'pending')
+  const answeredQ = (cls.questions || []).filter(q => q.status === 'answered')
+  const displayQ = qTab === 'pending' ? pendingQ : answeredQ
 
   return (
     <div style={{ height: 'calc(100vh - 20px)', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -368,10 +416,10 @@ export default function ClassroomTeacher({ classId }) {
                 {!isRecording
                   ? <button className="btn btn-primary btn-sm" onClick={startRecognition}>▶ Iniciar</button>
                   : <>
-                      <button className="btn btn-secondary btn-sm" onClick={togglePause}>{isPaused ? '▶ Reanudar' : '⏸ Pausar'}</button>
-                      <button className="btn btn-secondary btn-sm" onClick={handleClear}>🗑 Limpiar</button>
-                      <button className="btn btn-success btn-sm" onClick={handleSave}>💾 Guardar</button>
-                    </>
+                    <button className="btn btn-secondary btn-sm" onClick={togglePause}>{isPaused ? '▶ Reanudar' : '⏸ Pausar'}</button>
+                    <button className="btn btn-secondary btn-sm" onClick={handleClear}>🗑 Limpiar</button>
+                    <button className="btn btn-success btn-sm" onClick={handleSave}>💾 Guardar</button>
+                  </>
                 }
               </div>
             </div>
@@ -506,7 +554,7 @@ export default function ClassroomTeacher({ classId }) {
                       return (
                         <div key={r.userId || idx} className="attention-student-row responded">
                           <div className={`attention-rank ${getRankClass(idx)}`}>
-                            {idx < 3 ? ['🥇','🥈','🥉'][idx] : idx + 1}
+                            {idx < 3 ? ['🥇', '🥈', '🥉'][idx] : idx + 1}
                           </div>
                           <div className="attention-student-info">
                             <div className="attention-student-name">{user?.name || 'Estudiante'}</div>

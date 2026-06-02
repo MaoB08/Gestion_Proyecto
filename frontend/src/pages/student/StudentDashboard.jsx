@@ -85,6 +85,7 @@ export default function StudentDashboard() {
     getCoursesForTeacher, getClassesForCourse,
     getCoursesForStudent, getActiveClasses, joinClass,
     setActivePage, setActiveClassId, fetchGradesByStudent, grades,
+    fetchCoursesAdvanced, fetchCoursesByStudent, fetchActiveClassesByCourse, fetchParticipantHistory,
   } = useApp()
 
   const [tab, setTab]               = useState('my')
@@ -94,6 +95,13 @@ export default function StudentDashboard() {
   const [enrollLoading, setEnrollLoading] = useState(false)
   const [unenrollLoading, setUnenrollLoading] = useState(null) // courseId being unenrolled
   const [currentTime, setCurrentTime]         = useState(new Date())
+
+  // Dynamic state for index-optimized routes
+  const [myDynamicCourses, setMyDynamicCourses] = useState([])
+  const [exploredDynamic, setExploredDynamic] = useState([])
+  const [historyDynamic, setHistoryDynamic] = useState([])
+  const [activeClassesDynamic, setActiveClassesDynamic] = useState([])
+  const [exploreCategory, setExploreCategory] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 10000)
@@ -116,6 +124,40 @@ export default function StudentDashboard() {
     }
   }, [tab, studentId])
 
+  // 1. Fetch My Courses (Multikey Course index) & Active Classes for them (Compound Class index)
+  useEffect(() => {
+    if (tab === 'my' && studentId) {
+      fetchCoursesByStudent(studentId).then(data => {
+        setMyDynamicCourses(data)
+        // For each course, fetch active classes to utilize compound class index
+        data.forEach(c => {
+          fetchActiveClassesByCourse(c.id || c._id).then(activeCls => {
+            if (activeCls.length > 0) {
+              setActiveClassesDynamic(prev => {
+                const others = prev.filter(p => String(p.courseId?._id || p.courseId) !== String(c.id || c._id))
+                return [...others, ...activeCls]
+              })
+            }
+          })
+        })
+      })
+    }
+  }, [tab, studentId])
+
+  // 2. Fetch Explored Courses (Compound Course index)
+  useEffect(() => {
+    if (tab === 'explore' && studentId) {
+      fetchCoursesAdvanced(exploreCategory, 'Activo').then(data => setExploredDynamic(data))
+    }
+  }, [tab, studentId, exploreCategory])
+
+  // 3. Fetch History (Multikey Class index)
+  useEffect(() => {
+    if (tab === 'history' && studentId) {
+      fetchParticipantHistory(studentId).then(data => setHistoryDynamic(data))
+    }
+  }, [tab, studentId])
+
   if (!currentUser) return null
 
   const showToast = (message, type = 'success') => setToast({ message, type })
@@ -131,7 +173,7 @@ export default function StudentDashboard() {
   }) || []
 
   const enterClass = (classId) => {
-    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId))
+    const cls = classes.find(cl => String(cl.id || cl._id) === String(classId)) || activeClassesDynamic.find(cl => String(cl.id || cl._id) === String(classId))
     if (cls && cls.startTime) {
       const [h, m] = cls.startTime.split(':')
       const start = new Date(currentTime)
@@ -147,9 +189,8 @@ export default function StudentDashboard() {
   }
 
   // Courses not yet enrolled — active AND open only, filtered by search
-  const explored = courses.filter(c =>
+  const exploredFiltered = exploredDynamic.filter(c =>
     !(c.studentIds || []).map(String).includes(String(studentId)) &&
-    c.estado === 'Activo' &&
     (c.tipoInscripcion === 'Abierto' || !c.tipoInscripcion) &&
     (
       (c.name || '').toLowerCase().includes(search.toLowerCase()) ||
@@ -237,10 +278,10 @@ export default function StudentDashboard() {
         {/* Stats */}
         <div className="stats-grid">
           {[
-            { label: 'Mis Cursos',        value: myCourses.length,      icon: '📚', bg: '#EDE9FE', color: '#7C3AED' },
-            { label: 'Clases Activas',    value: myActiveClasses.length, icon: '🔴', bg: '#FEF2F2', color: '#DC2626' },
+            { label: 'Mis Cursos',        value: myDynamicCourses.length,      icon: '📚', bg: '#EDE9FE', color: '#7C3AED' },
+            { label: 'Clases Activas',    value: activeClassesDynamic.length, icon: '🔴', bg: '#FEF2F2', color: '#DC2626' },
             { label: 'Clases Guardadas',  value: classes.filter(cl => (cl.attendance || []).some(a => String(a.userId) === String(studentId)) && cl.savedTranscription).length, icon: '💾', bg: '#ECFDF5', color: '#059669' },
-            { label: 'Cursos Disponibles',value: explored.length,        icon: '🔍', bg: '#EFF6FF', color: '#2563EB' },
+            { label: 'Cursos Disponibles',value: exploredFiltered.length,        icon: '🔍', bg: '#EFF6FF', color: '#2563EB' },
           ].map(s => (
             <div className="stat-card" key={s.label}>
               <div className="stat-card-top">
@@ -253,7 +294,7 @@ export default function StudentDashboard() {
         </div>
 
         {/* Live classes */}
-        {myActiveClasses.length > 0 && (
+        {activeClassesDynamic.length > 0 && (
           <div className="card" style={{ marginBottom: 20, borderColor: 'var(--danger)', borderWidth: 2 }}>
             <div className="card-header">
               <div>
@@ -262,9 +303,9 @@ export default function StudentDashboard() {
               </div>
             </div>
             <div className="card-body" style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {myActiveClasses.map(cl => {
+              {activeClassesDynamic.map(cl => {
                 const clCourseId = String(cl.courseId?._id || cl.courseId)
-                const course  = courses.find(c => String(c.id || c._id) === clCourseId)
+                const course  = myDynamicCourses.find(c => String(c.id || c._id) === clCourseId) || courses.find(c => String(c.id || c._id) === clCourseId)
                 const teacher = users.find(u => String(u.id || u._id) === String(course?.teacherId?._id || course?.teacherId))
                 return (
                   <div key={cl.id || cl._id} className="lobby-card">
@@ -289,10 +330,10 @@ export default function StudentDashboard() {
         {/* Tabs */}
         <div className="tabs">
           <button className={`tab-btn ${tab === 'my' ? 'active' : ''}`} onClick={() => setActivePage('my-courses')}>
-            Mis Cursos <span className="tab-count">{myCourses.length}</span>
+            Mis Cursos <span className="tab-count">{myDynamicCourses.length}</span>
           </button>
           <button className={`tab-btn ${tab === 'explore' ? 'active' : ''}`} onClick={() => setActivePage('explore')}>
-            Explorar Cursos <span className="tab-count">{explored.length}</span>
+            Explorar Cursos <span className="tab-count">{exploredFiltered.length}</span>
           </button>
           <button className={`tab-btn ${tab === 'history' ? 'active' : ''}`} onClick={() => setActivePage('history')}>
             Mi Historial
@@ -304,7 +345,7 @@ export default function StudentDashboard() {
 
         {/* MY COURSES */}
         {tab === 'my' && (
-          myCourses.length === 0 ? (
+          myDynamicCourses.length === 0 ? (
             <div className="empty-state">
               <span className="empty-state-icon">📚</span>
               <div className="empty-state-title">Aún no estás inscrito en ningún curso</div>
@@ -313,7 +354,7 @@ export default function StudentDashboard() {
             </div>
           ) : (
             <div className="course-grid">
-              {myCourses.map(c => {
+              {myDynamicCourses.map(c => {
                 const cId          = c.id || c._id
                 const teacher      = users.find(u => String(u.id || u._id) === String(c.teacherId?._id || c.teacherId))
                 const courseClasses = classes.filter(cl => String(cl.courseId?._id || cl.courseId) === String(cId))
@@ -357,17 +398,30 @@ export default function StudentDashboard() {
         {/* EXPLORE */}
         {tab === 'explore' && (
           <>
-            <div className="search-wrap" style={{ marginBottom: 16 }}>
-              <span className="search-icon">🔍</span>
-              <input
-                className="form-input"
-                placeholder="Buscar cursos disponibles..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+            <div className="search-wrap" style={{ marginBottom: 16, display: 'flex', gap: 10 }}>
+              <div style={{ flex: 1, position: 'relative' }}>
+                <span className="search-icon">🔍</span>
+                <input
+                  className="form-input"
+                  placeholder="Buscar cursos disponibles..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                />
+              </div>
+              <select 
+                className="form-select" 
+                style={{ width: 220 }}
+                value={exploreCategory}
+                onChange={e => setExploreCategory(e.target.value)}
+              >
+                <option value="">Todas las categorías</option>
+                {Object.keys(THUMB).map(cat => (
+                  <option key={cat} value={cat}>{THUMB[cat]} {cat}</option>
+                ))}
+              </select>
             </div>
 
-            {explored.length === 0 ? (
+            {exploredFiltered.length === 0 ? (
               <div className="empty-state">
                 <span className="empty-state-icon">🔍</span>
                 <div className="empty-state-title">No hay cursos disponibles en este momento</div>
@@ -375,7 +429,7 @@ export default function StudentDashboard() {
               </div>
             ) : (
               <div className="course-grid">
-                {explored.map(c => {
+                {exploredFiltered.map(c => {
                   const cId    = c.id || c._id
                   const teacher = users.find(u => String(u.id || u._id) === String(c.teacherId?._id || c.teacherId))
                   const isPending = (c.pendingStudentIds || []).map(String).includes(String(studentId))
@@ -425,11 +479,11 @@ export default function StudentDashboard() {
                   <tr><th>Clase</th><th>Curso</th><th>Fecha</th><th>Transcripción</th><th>Resumen IA</th></tr>
                 </thead>
                 <tbody>
-                  {(classes || []).filter(cl => (cl.attendance || []).some(a => String(a.userId) === String(studentId))).length === 0 ? (
+                  {historyDynamic.length === 0 ? (
                     <tr><td colSpan={5}><div className="empty-state"><span className="empty-state-icon">📋</span><div className="empty-state-title">Aún no has asistido a ninguna clase</div></div></td></tr>
-                  ) : (classes || []).filter(cl => (cl.attendance || []).some(a => String(a.userId) === String(studentId))).map(cl => {
+                  ) : historyDynamic.map(cl => {
                     const clCourseId = String(cl.courseId?._id || cl.courseId)
-                    const course = courses.find(c => String(c.id || c._id) === clCourseId)
+                    const course = courses.find(c => String(c.id || c._id) === clCourseId) || cl.courseId
                     return (
                       <tr key={cl.id || cl._id}>
                         <td><div style={{ fontWeight: 600 }}>{cl.title}</div></td>

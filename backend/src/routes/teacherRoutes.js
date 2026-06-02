@@ -1,6 +1,6 @@
-const express  = require('express');
-const bcrypt    = require('bcryptjs');
-const router    = express.Router();
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const router = express.Router();
 const { Teacher, DOMAIN_AREAS } = require('../models/Teacher');
 
 // ── GET /api/teachers — list all teachers ─────────────────────────────────────
@@ -105,6 +105,35 @@ router.delete('/:id', async (req, res) => {
   try {
     await Teacher.findByIdAndDelete(req.params.id);
     res.json({ message: 'Profesor eliminado' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// ── GET /api/teachers/history — detailed history report ──────────────────────
+router.get('/history', async (_req, res) => {
+  try {
+    // 1. Profesores recientes: $or (anioInicio 2025 o 2026)
+    const recientes = await Teacher.find({
+      $or: [
+        { anioInicio: 2025 },
+        { anioInicio: 2026 }
+      ]
+    })
+    .select('nombre apellido anioInicio')
+    .sort({ anioInicio: 1 });
+
+    // 2. Profesores antiguos: $and y $not (no sean 2025 y no sean 2026)
+    const antiguos = await Teacher.find({
+      $and: [
+        { anioInicio: { $not: { $eq: 2025 } } },
+        { anioInicio: { $not: { $eq: 2026 } } }
+      ]
+    })
+    .select('nombre apellido anioInicio')
+    .sort({ anioInicio: 1 });
+
+    res.json({ recientes, antiguos });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

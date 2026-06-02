@@ -60,6 +60,15 @@ const StudentSchema = new mongoose.Schema({
     minlength: [8, 'La clave debe tener al menos 8 caracteres'],
   },
 
+  // Gender
+  sexo: {
+    type: String,
+    enum: {
+      values: ['Masculino', 'Femenino', 'Otro', 'M', 'F'],
+      message: 'El sexo debe ser Masculino, Femenino u Otro',
+    },
+  },
+
   // Academic institution name
   institucion: {
     type: String,
@@ -79,10 +88,25 @@ const StudentSchema = new mongoose.Schema({
     default: false,
   },
 
+  // GeoJSON location point for tracking student location at login
+  location: {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number], // [longitude, latitude]
+    }
+  },
+
   createdAt: {
     type: Date,
     default: Date.now,
   },
 });
+
+// Optionally we can add a 2dsphere index if needed for querying by location
+StudentSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Student', StudentSchema);

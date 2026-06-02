@@ -114,9 +114,7 @@ export function AppProvider({ children }) {
 
   // Helper to show index insight
   const showIndexInsight = useCallback((indexName) => {
-    if (!indexName) return;
-    setIndexInsight({ name: indexName, timestamp: Date.now() })
-    setTimeout(() => setIndexInsight(null), 4000)
+    return; // Disabled permanently per user request
   }, [])
 
   // Persist local-only state (users/classes still in localStorage for now)
@@ -130,9 +128,9 @@ export function AppProvider({ children }) {
       const resCourses = await fetch('http://localhost:3001/api/courses')
       if (resCourses.ok) {
         const dataCourses = await resCourses.json()
-        setCourses(dataCourses.map(c => ({ 
-          ...c, 
-          id: c._id, 
+        setCourses(dataCourses.map(c => ({
+          ...c,
+          id: c._id,
           teacherId: c.teacherId?._id || c.teacherId, // Normalize if populated
           studentIds: (c.studentIds || []).map(id => id._id || id),
           pendingStudentIds: (c.pendingStudentIds || []).map(id => id._id || id),
@@ -212,7 +210,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     const handler = (e) => {
       if (e.key === 'classai_classes') {
-        try { setClasses(JSON.parse(e.newValue)) } catch {}
+        try { setClasses(JSON.parse(e.newValue)) } catch { }
       }
     }
     window.addEventListener('storage', handler)
@@ -221,15 +219,21 @@ export function AppProvider({ children }) {
 
   // ── AUTH ───────────────────────────────────────────────────────────────────
   // POST /api/auth/login — verifica email + contraseña contra MongoDB
-  const login = async (email, password) => {
+  const login = async (email, password, latitude = null, longitude = null) => {
     try {
+      const body = { email, password }
+      if (latitude !== null && longitude !== null) {
+        body.latitude = latitude
+        body.longitude = longitude
+      }
+
       const res = await fetch('http://localhost:3001/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(body),
       })
       const json = await res.json()
-      
+
       // 403 = cuenta bloqueada o pendiente de aprobación
       if (res.status === 403) return { success: false, error: json.message }
 
@@ -305,14 +309,14 @@ export function AppProvider({ children }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          documento:   data.documento,
-          nombre:      data.nombre.trim(),
-          apellido:    data.apellido.trim(),
-          telefono:    data.telefono,
-          correo:      data.correo.toLowerCase(),
-          clave:       data.clave,
+          documento: data.documento,
+          nombre: data.nombre.trim(),
+          apellido: data.apellido.trim(),
+          telefono: data.telefono,
+          correo: data.correo.toLowerCase(),
+          clave: data.clave,
           areaDominio: data.areaDominio,
-          anioInicio:  data.anioInicio,
+          anioInicio: data.anioInicio,
         }),
       })
 
@@ -326,22 +330,22 @@ export function AppProvider({ children }) {
       // ── Sync saved teacher into local state so table refreshes ──────────────
       const fullName = `${json.nombre} ${json.apellido}`
       const localUser = {
-        id:          json._id,
-        name:        fullName,
-        email:       json.correo,
-        username:    json.documento,
-        role:        'teacher',
-        avatar:      fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
-        createdAt:   new Date(json.createdAt).toISOString().split('T')[0],
+        id: json._id,
+        name: fullName,
+        email: json.correo,
+        username: json.documento,
+        role: 'teacher',
+        avatar: fullName.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase(),
+        createdAt: new Date(json.createdAt).toISOString().split('T')[0],
         // RF-02 extended fields
-        documento:   json.documento,
-        nombre:      json.nombre,
-        apellido:    json.apellido,
-        telefono:    json.telefono,
-        correo:      json.correo,
+        documento: json.documento,
+        nombre: json.nombre,
+        apellido: json.apellido,
+        telefono: json.telefono,
+        correo: json.correo,
         areaDominio: json.areaDominio,
-        anioInicio:  json.anioInicio,
-        estado:      json.estado,
+        anioInicio: json.anioInicio,
+        estado: json.estado,
       }
       setUsers(prev => [...prev, localUser])
       return { success: true, user: localUser }
@@ -400,11 +404,11 @@ export function AppProvider({ children }) {
       });
       const json = await res.json();
       if (!res.ok) return { success: false, error: json.message };
-      
-      const newCourse = { 
-        ...json, 
+
+      const newCourse = {
+        ...json,
         id: json._id,
-        teacherId: json.teacherId?._id || json.teacherId 
+        teacherId: json.teacherId?._id || json.teacherId
       };
       setCourses(prev => [...prev, newCourse]);
       return { success: true, course: newCourse };
@@ -423,12 +427,12 @@ export function AppProvider({ children }) {
       });
       const json = await res.json();
       if (!res.ok) return { success: false, error: json.message };
-      
+
       setCourses(prev => prev.map(c => {
         if ((c.id || c._id) === dbId) {
-          return { 
-            ...c, 
-            ...json, 
+          return {
+            ...c,
+            ...json,
             id: json._id,
             teacherId: json.teacherId?._id || json.teacherId
           };
@@ -451,7 +455,7 @@ export function AppProvider({ children }) {
         const json = await res.json();
         return { success: false, error: json.message || 'Error al eliminar' };
       }
-      
+
       setCourses(prev => prev.filter(c => (c.id || c._id) !== dbId));
       setClasses(prev => prev.filter(cl => cl.courseId !== dbId));
       return { success: true };
@@ -842,6 +846,22 @@ export function AppProvider({ children }) {
       return { success: false, error: 'Error de red' }
     }
   }
+  const completeAttentionCheck = async (classId, checkId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check/${checkId}/complete`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+      })
+      const json = await res.json()
+      if (!res.ok) return { success: false, error: json.message || 'Error al completar' }
+      setClasses(prev => prev.map(cl =>
+        String(cl.id || cl._id) === String(classId) ? { ...cl, attentionChecks: json.attentionChecks } : cl
+      ))
+      return { success: true }
+    } catch {
+      return { success: false, error: 'Error de red' }
+    }
+  }
 
   // RF-07: Course Contents
   const addCourseContent = async (courseId, formData) => {
@@ -854,7 +874,7 @@ export function AppProvider({ children }) {
       const json = await res.json();
       if (!res.ok) return { success: false, error: json.message || 'Error agregando contenido' };
 
-      setCourses(prev => prev.map(c => 
+      setCourses(prev => prev.map(c =>
         (c.id || c._id) === dbId ? { ...c, contents: [...(c.contents || []), json] } : c
       ));
       return { success: true };
@@ -874,8 +894,8 @@ export function AppProvider({ children }) {
         return { success: false, error: json.message || 'Error al eliminar contenido' };
       }
 
-      setCourses(prev => prev.map(c => 
-        (c.id || c._id) === dbId 
+      setCourses(prev => prev.map(c =>
+        (c.id || c._id) === dbId
           ? { ...c, contents: (c.contents || []).filter(cnt => cnt._id !== contentId) }
           : c
       ));
@@ -898,9 +918,9 @@ export function AppProvider({ children }) {
 
       // Update local grades state
       setGrades(prev => {
-        const index = prev.findIndex(g => 
-          String(g.studentId?._id || g.studentId) === String(gradeData.studentId) && 
-          String(g.courseId?._id || g.courseId) === String(gradeData.courseId) && 
+        const index = prev.findIndex(g =>
+          String(g.studentId?._id || g.studentId) === String(gradeData.studentId) &&
+          String(g.courseId?._id || g.courseId) === String(gradeData.courseId) &&
           String(g.contentId?._id || g.contentId) === String(gradeData.contentId)
         );
         if (index >= 0) {
@@ -970,14 +990,76 @@ export function AppProvider({ children }) {
     }
   }
 
+  // ── INDEX-OPTIMIZED FETCH FUNCTIONS ────────────────────────
+  const fetchCoursesAdvanced = async (category, estado) => {
+    try {
+      let url = 'http://localhost:3001/api/courses?';
+      if (category) url += `category=${encodeURIComponent(category)}&`;
+      if (estado) url += `estado=${encodeURIComponent(estado)}`;
+      
+      const res = await fetch(url);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchCoursesByStudent = async (studentId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/courses/student/${studentId}`);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchActiveClassesByCourse = async (courseId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/course/${courseId}?isActive=true`);
+      if (res.ok) {
+        // Mongoose might return X-DB-Optimization header if index was hit
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
+  const fetchParticipantHistory = async (userId) => {
+    try {
+      const res = await fetch(`http://localhost:3001/api/classes/participant/${userId}`);
+      if (res.ok) {
+        showIndexInsight(res.headers.get('X-DB-Optimization'));
+        return await res.json();
+      }
+      return [];
+    } catch (err) {
+      console.error(err);
+      return [];
+    }
+  }
+
   // ── HELPERS ────────────────────────────────
-  const getUserById      = (id) => users.find(u => String(u.id || u._id) === String(id))
-  const getCourseById    = (id) => courses.find(c => String(c.id || c._id) === String(id))
-  const getClassById     = (id) => classes.find(cl => String(cl.id || cl._id) === String(id))
-  const getClassesForCourse  = (courseId) => classes.filter(cl => String(cl.courseId) === String(courseId))
+  const getUserById = (id) => users.find(u => String(u.id || u._id) === String(id))
+  const getCourseById = (id) => courses.find(c => String(c.id || c._id) === String(id))
+  const getClassById = (id) => classes.find(cl => String(cl.id || cl._id) === String(id))
+  const getClassesForCourse = (courseId) => classes.filter(cl => String(cl.courseId) === String(courseId))
   const getCoursesForTeacher = (teacherId) => courses.filter(c => String(c.teacherId) === String(teacherId))
   const getCoursesForStudent = (studentId) => courses.filter(c => c.studentIds.map(String).includes(String(studentId)))
-  const getActiveClasses     = () => classes.filter(cl => cl.isActive)
+  const getActiveClasses = () => classes.filter(cl => cl.isActive)
 
   const value = {
     // State
@@ -994,12 +1076,13 @@ export function AppProvider({ children }) {
     // Classes
     createClass, activateClass, deactivateClass, joinClass, leaveClass, fetchClassesByCourse,
     appendTranscription, clearTranscription, saveTranscription, setSummary,
-    sendQuestion, answerQuestion, launchAttentionCheck, respondAttentionCheck,
-    sendQuestion, answerQuestion,
+    sendQuestion, answerQuestion, launchAttentionCheck, respondAttentionCheck, completeAttentionCheck,
     indexInsight, setIndexInsight,
     showIndexInsight,
     // Grades
     grades, saveGrade, fetchGradesByCourse, fetchGradesByStudent,
+    // Index-optimized fetching
+    fetchCoursesAdvanced, fetchCoursesByStudent, fetchActiveClassesByCourse, fetchParticipantHistory,
     // Helpers
     getUserById, getCourseById, getClassById, getClassesForCourse,
     getCoursesForTeacher, getCoursesForStudent, getActiveClasses,

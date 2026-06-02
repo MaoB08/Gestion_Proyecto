@@ -27,8 +27,24 @@ exports.getById = async (req, res) => {
 // @route GET /api/classes/course/:courseId
 exports.getByCourse = async (req, res) => {
   try {
-    const classes = await Class.find({ courseId: req.params.courseId });
-    res.set('X-DB-Optimization', 'index_class_courseId');
+    const filter = { courseId: req.params.courseId };
+    if (req.query.isActive !== undefined) {
+      filter.isActive = req.query.isActive === 'true';
+    }
+    const classes = await Class.find(filter);
+    res.set('X-DB-Optimization', 'index_class_courseId_isActive');
+    res.json(classes);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Get classes by participant
+// @route GET /api/classes/participant/:userId
+exports.getByParticipant = async (req, res) => {
+  try {
+    const classes = await Class.find({ participantIds: req.params.userId }).populate('courseId', 'name');
+    res.set('X-DB-Optimization', 'index_class_participantIds');
     res.json(classes);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -74,7 +90,7 @@ exports.create = async (req, res) => {
     // 4. Time validation (no past starts)
     // Usamos el separador 'T' para que Date() lo interprete como hora local consistentemente.
     const startDateTime = new Date(`${date}T${startTime}:00`);
-    
+
     if (startDateTime < new Date()) {
       return res.status(400).json({ message: 'La hora de inicio no puede ser anterior a la actual.' });
     }
@@ -195,7 +211,7 @@ exports.answerQuestion = async (req, res) => {
       req.params.classId,
       {
         $set: {
-          'questions.$[q].status':     'answered',
+          'questions.$[q].status': 'answered',
           'questions.$[q].answeredAt': new Date(),
         },
       },
@@ -308,6 +324,27 @@ exports.respondAttentionCheck = async (req, res) => {
     if (allResponded) check.status = 'completed';
 
     await cls.save();
+    res.json(cls);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+};
+
+// @desc  Complete attention check
+// @route PUT /api/classes/:id/attention-check/:checkId/complete
+exports.completeAttentionCheck = async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const check = cls.attentionChecks.id(req.params.checkId);
+    if (!check) return res.status(404).json({ message: 'Verificación no encontrada' });
+
+    if (check.status === 'active') {
+      check.status = 'completed';
+      await cls.save();
+    }
+    
     res.json(cls);
   } catch (err) {
     res.status(400).json({ message: err.message });

@@ -1,10 +1,103 @@
 const Course = require('../models/Course');
 
+// @desc Get report of courses by category
+// @route GET /api/courses/reports/categories
+exports.getCategoryReport = async (req, res) => {
+  try {
+    const report = await Course.aggregate([
+      {
+        $lookup: {
+          from: 'classes',
+          localField: '_id',
+          foreignField: 'courseId',
+          as: 'courseClasses'
+        }
+      },
+      {
+        $group: {
+          _id: { $cond: { if: { $eq: ["$category", ""] }, then: "Sin Categoría", else: { $ifNull: ["$category", "Sin Categoría"] } } },
+          totalCourses: { $sum: 1 },
+          totalClasses: { $sum: { $size: { $ifNull: ["$courseClasses", []] } } }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          category: "$_id",
+          totalCourses: 1,
+          totalClasses: 1
+        }
+      },
+      {
+        $sort: { category: 1 }
+      }
+    ]);
+    res.json(report);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 // @desc  Get all courses (with teacher populated)
 // @route GET /api/courses
 exports.getAll = async (req, res) => {
   try {
-    const courses = await Course.find().populate('teacherId', 'nombre apellido correo');
+    const { sortBy, order, category, estado } = req.query;
+
+    const filter = {};
+    if (category) filter.category = category;
+    if (estado) filter.estado = estado;
+
+    if (sortBy === 'students' || sortBy === 'classes') {
+      const sortOrder = order === 'desc' ? -1 : 1;
+      
+      const pipeline = [
+        {
+          $lookup: {
+            from: 'teachers',
+            localField: 'teacherId',
+            foreignField: '_id',
+            as: 'teacher'
+          }
+        },
+        { $unwind: { path: '$teacher', preserveNullAndEmptyArrays: true } },
+        {
+          $addFields: {
+            teacherId: '$teacher',
+            studentsCount: { $size: { $ifNull: ['$studentIds', []] } }
+          }
+        }
+      ];
+
+      if (sortBy === 'classes') {
+        pipeline.push({
+          $lookup: {
+            from: 'classes',
+            localField: '_id',
+            foreignField: 'courseId',
+            as: 'courseClasses'
+          }
+        });
+        pipeline.push({
+          $addFields: {
+            classesCount: { $size: { $ifNull: ['$courseClasses', []] } }
+          }
+        });
+      }
+
+      pipeline.push({
+        $sort: {
+          [sortBy === 'students' ? 'studentsCount' : 'classesCount']: sortOrder
+        }
+      });
+
+      const aggregatedCourses = await Course.aggregate(pipeline);
+      return res.json(aggregatedCourses);
+    }
+
+    const courses = await Course.find(filter).populate('teacherId', 'nombre apellido correo');
+    // Indicamos en headers que esta ruta puede aprovechar el índice compuesto si se pasan category y estado
+    res.set('X-DB-Optimization', 'index_course_category_estado');
     res.json(courses);
   } catch (err) {
     res.status(500).json({ message: err.message });
@@ -30,6 +123,41 @@ exports.getByTeacher = async (req, res) => {
     const courses = await Course.find({ teacherId: req.params.teacherId });
     res.set('X-DB-Optimization', 'index_course_teacherId');
     res.json(courses);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Get enrolled students for a course
+// @route GET /api/courses/:id/students
+exports.getCourseStudents = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const courseId = new mongoose.Types.ObjectId(req.params.id);
+
+    const result = await Course.aggregate([
+      { $match: { _id: courseId } },
+      { 
+        $lookup: {
+          from: 'students', 
+          localField: 'studentIds', 
+          foreignField: '_id', 
+          as: 'enrolledStudents'
+        } 
+      },
+      { $unwind: { path: '$enrolledStudents', preserveNullAndEmptyArrays: false } },
+      {
+        $project: {
+          _id: '$enrolledStudents._id',
+          nombre: '$enrolledStudents.nombre',
+          apellido: '$enrolledStudents.apellido',
+          correo: '$enrolledStudents.correo',
+          location: '$enrolledStudents.location'
+        }
+      }
+    ]);
+
+    res.json(result);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

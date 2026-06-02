@@ -6,15 +6,29 @@ export default function ReportsPage() {
   const { users, courses, classes, refreshData } = useApp()
   const [tab, setTab] = useState('students')
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [teacherHistory, setTeacherHistory] = useState({ recientes: [], antiguos: [] })
+
+  const fetchHistory = async () => {
+    try {
+      const res = await fetch('http://localhost:3001/api/teachers/history')
+      if (res.ok) {
+        const data = await res.json()
+        setTeacherHistory(data)
+      }
+    } catch (err) {
+      console.error('Error fetching teacher history:', err)
+    }
+  }
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     await refreshData()
+    if (tab === 'teacherHistory') await fetchHistory()
     setIsRefreshing(false)
   }
 
-  const teachers  = users.filter(u => u.role === 'teacher')
-  const students  = users.filter(u => u.role === 'student')
+  const teachers = users.filter(u => u.role === 'teacher')
+  const students = users.filter(u => u.role === 'student')
 
   // Report: students per course
   const studentsPerCourse = courses.map(c => ({
@@ -26,8 +40,8 @@ export default function ReportsPage() {
 
   // Report: classes per teacher
   const classesPerTeacher = teachers.map(t => {
-    const myCourses  = courses.filter(c => c.teacherId === t.id)
-    const myClasses  = classes.filter(cl => myCourses.some(c => c.id === cl.courseId))
+    const myCourses = courses.filter(c => c.teacherId === t.id)
+    const myClasses = classes.filter(cl => myCourses.some(c => c.id === cl.courseId))
     const totalAttend = myClasses.reduce((acc, cl) => acc + cl.attendance.length, 0)
     return { teacher: t, courses: myCourses, classes: myClasses, totalAttend }
   })
@@ -59,9 +73,9 @@ export default function ReportsPage() {
       })
     }
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
-    a.href     = url
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
     a.download = `reporte_${tab}_${new Date().toISOString().split('T')[0]}.csv`
     a.click()
     URL.revokeObjectURL(url)
@@ -87,9 +101,9 @@ export default function ReportsPage() {
         <div className="stats-grid" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
           {[
             { label: 'Estudiantes', value: students.length, icon: '👨‍🎓', bg: '#EDE9FE', color: '#7C3AED' },
-            { label: 'Profesores',  value: teachers.length, icon: '👨‍🏫', bg: '#EFF6FF', color: '#2563EB' },
-            { label: 'Cursos',      value: courses.length,  icon: '📚', bg: '#ECFDF5', color: '#059669' },
-            { label: 'Clases',      value: classes.length,  icon: '🎓', bg: '#FFFBEB', color: '#D97706' },
+            { label: 'Profesores', value: teachers.length, icon: '👨‍🏫', bg: '#EFF6FF', color: '#2563EB' },
+            { label: 'Cursos', value: courses.length, icon: '📚', bg: '#ECFDF5', color: '#059669' },
+            { label: 'Clases', value: classes.length, icon: '🎓', bg: '#FFFBEB', color: '#D97706' },
           ].map(s => (
             <div className="stat-card" key={s.label}>
               <div className="stat-card-top">
@@ -109,11 +123,15 @@ export default function ReportsPage() {
             <div className="tabs">
               {[
                 { id: 'students', label: `Estudiantes por Curso (${studentsPerCourse.length})` },
-                { id: 'classes',  label: `Clases por Profesor (${classesPerTeacher.length})` },
-                { id: 'attendance',label: `Asistencia por Clase (${attendance.length})` },
+                { id: 'classes', label: `Clases por Profesor (${classesPerTeacher.length})` },
+                { id: 'attendance', label: `Asistencia por Clase (${attendance.length})` },
                 { id: 'optimization', label: 'Optimización de BD (Índices)' },
+                { id: 'teacherHistory', label: 'Histórico de profesores' },
               ].map(t => (
-                <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => setTab(t.id)}>
+                <button key={t.id} className={`tab-btn ${tab === t.id ? 'active' : ''}`} onClick={() => {
+                  setTab(t.id)
+                  if (t.id === 'teacherHistory') fetchHistory()
+                }}>
                   {t.label}
                 </button>
               ))}
@@ -237,7 +255,7 @@ export default function ReportsPage() {
                   {/* Index List */}
                   <div className="card" style={{ border: 'none', boxShadow: 'none' }}>
                     <div className="card-title" style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>
                       Índices en Producción
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -264,14 +282,14 @@ export default function ReportsPage() {
                   {/* Simulator */}
                   <div className="card" style={{ padding: 20, background: '#111827', color: 'white', borderRadius: 'var(--radius-lg)' }}>
                     <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BBF7D0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#BBF7D0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                       Simulador de Latencia
                     </div>
-                    
+
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
                       <div className="sim-item" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div className="sim-item-title" style={{ color: '#BBF7D0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></svg>
                           Con Índice (B-Tree Search)
                         </div>
                         <div style={{ fontSize: 24, fontWeight: 800 }}>~2ms</div>
@@ -282,7 +300,7 @@ export default function ReportsPage() {
 
                       <div className="sim-item" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
                         <div className="sim-item-title" style={{ color: '#FCA5A5', display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" /></svg>
                           Sin Índice (Full Collection Scan)
                         </div>
                         <div style={{ fontSize: 24, fontWeight: 800 }}>~450ms</div>
@@ -295,6 +313,62 @@ export default function ReportsPage() {
                     <div style={{ marginTop: 20, fontSize: 11, color: 'rgba(255,255,255,0.5)', fontStyle: 'italic' }}>
                       * Valores proyectados basados en una colección de 50,000 registros.
                     </div>
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* Teacher History Tab */}
+            {tab === 'teacherHistory' && (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 30, marginTop: 10 }}>
+                {/* Recientes */}
+                <div>
+                  <h4 style={{ marginBottom: 16, color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>🆕</span> Profesores recientes (2025-2026)
+                  </h4>
+                  <div className="card" style={{ padding: 0, border: '1px solid var(--border)', boxShadow: 'none' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr><th>Nombre</th><th style={{ textAlign: 'center' }}>Año Inicio</th></tr>
+                      </thead>
+                      <tbody>
+                        {teacherHistory.recientes.length === 0 ? (
+                          <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Sin registros</td></tr>
+                        ) : (
+                          teacherHistory.recientes.map((t, i) => (
+                            <tr key={i}>
+                              <td><div style={{ fontWeight: 600 }}>{t.nombre} {t.apellido}</div></td>
+                              <td style={{ textAlign: 'center' }}><span className="badge badge-success">{t.anioInicio}</span></td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Antiguos */}
+                <div>
+                  <h4 style={{ marginBottom: 16, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>⏳</span> Profesores antiguos (Pre-2025)
+                  </h4>
+                  <div className="card" style={{ padding: 0, border: '1px solid var(--border)', boxShadow: 'none' }}>
+                    <table className="data-table">
+                      <thead>
+                        <tr><th>Nombre</th><th style={{ textAlign: 'center' }}>Año Inicio</th></tr>
+                      </thead>
+                      <tbody>
+                        {teacherHistory.antiguos.length === 0 ? (
+                          <tr><td colSpan={2} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Sin registros</td></tr>
+                        ) : (
+                          teacherHistory.antiguos.map((t, i) => (
+                            <tr key={i}>
+                              <td><div style={{ fontWeight: 600 }}>{t.nombre} {t.apellido}</div></td>
+                              <td style={{ textAlign: 'center' }}><span className="badge badge-gray">{t.anioInicio}</span></td>
+                            </tr>
+                          ))
+                        )}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
               </div>

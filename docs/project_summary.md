@@ -99,7 +99,8 @@ backend/src/
 ```js
 { documento(unique,8-11dig), nombre(max32), apellido(max32), anioNacimiento(4dig),
   telefono(unique,10dig), correo(unique,email), clave(hash,min8),
-  institucion, estado(bool,default:true), aprobado(bool,default:false), createdAt }
+  sexo: ['Masculino','Femenino','Otro','M','F'], institucion, location(GeoJSON Point),
+  estado(bool,default:true), aprobado(bool,default:false), createdAt }
 ```
 > ⚠️ `aprobado:false` bloquea el login con código `PENDING_APPROVAL`. Un admin debe aprobar al estudiante.
 
@@ -115,11 +116,17 @@ backend/src/
 
 ### `Class` — Sesiones de clase
 ```js
-{ courseId(ref:Course), title, date, startTime, sessionType:['Live','In-Person','Workshop'],
+{ courseId(ref:Course), title, date, startTime, endTime, sessionType:['Live','In-Person','Workshop'],
   isActive(bool), transcription([{text,timestamp,isFinal}]), savedTranscription,
   summary, participantIds([ref:User]), questions([QuestionSchema]),
-  attendance([{userId,joinedAt}]), createdAt }
+  attendance([{userId,joinedAt}]), attentionChecks([AttentionCheckSchema]), createdAt }
 ```
+
+- **Classroom Rendering:** Dynamically resolves routing based on component state and implements resilient fallback fetching (to bypass global state polling delays).
+- **Interactive UI:**
+  - Real-time Transcription with AI capabilities (Topic Extraction, Partial/Final Summaries).
+  - Attention Check polling and UI state rendering.
+  - Active participant tracking and live question management.
 
 ---
 
@@ -148,6 +155,10 @@ backend/src/
 | POST | `/api/classes/:id/questions` | **Enviar pregunta** en vivo |
 | PUT | `/api/classes/:classId/questions/:questionId/answer` | Marcar pregunta como respondida |
 | POST | `/api/classes/:id/join` | Unirse a la clase (asistencia) |
+| POST | `/api/classes/:id/attention-check` | **Lanzar verificación de atención** |
+| POST | `/api/classes/:classId/attention-check/:checkId/respond` | Responder a verificación |
+| PUT  | `/api/classes/:classId/attention-check/:checkId/complete` | Completar verificación |
+| GET  | `/api/courses/:id/students` | Obtener estudiantes (incluye ubicaciones geo) |
 | GET | `/api/health` | Health check |
 
 ---
@@ -217,6 +228,9 @@ frontend/src/
 | RF-06 | Gestión de cursos | ✅ Backend + frontend (CoursesPage) |
 | RF-07 | Gestión de contenidos | ✅ Backend + frontend (TeacherDashboard - Materiales) |
 | RF-08 | Inscripción en curso | ✅ Backend completo + Sistema de Solicitudes (Aprobar/Rechazar) |
+| RF-09 | Calificaciones avanzadas | ✅ Gestión de calificaciones con sistema tier |
+| RF-10 | Tracking de Atención en Vivo | ✅ Backend + frontend (Verificaciones aleatorias de 30s) |
+| RF-11 | Analítica Geoespacial | ✅ Backend + frontend (Mapa de Leaflet con ubicaciones) |
 | RF-XX | Restauración UI Admin | ✅ Reversión a tabla clásica + Separación de solicitudes |
 | RF-XX | Navegación Estudiante | ✅ Sidebar sincronizado con Dashboard interno |
 

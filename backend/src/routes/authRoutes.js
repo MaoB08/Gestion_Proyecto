@@ -83,6 +83,15 @@ router.post('/login', async (req, res) => {
         return res.status(403).json({ message: 'Su cuenta está inactiva. Contacte al administrador.' });
       }
 
+      const { latitude, longitude } = req.body;
+      if (latitude !== undefined && longitude !== undefined) {
+        student.location = {
+          type: "Point",
+          coordinates: [parseFloat(longitude), parseFloat(latitude)]
+        };
+        await student.save();
+      }
+
       const fullName = `${student.nombre} ${student.apellido}`;
       res.set('X-DB-Optimization', 'index_student_correo');
       return res.json({
