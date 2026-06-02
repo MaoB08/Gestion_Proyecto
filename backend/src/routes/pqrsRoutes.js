@@ -17,6 +17,9 @@ router.get('/',              ctrl.listarPQRS);
 // GET  /api/pqrs/:id     — Detalle de una PQRS con su respuesta
 router.get('/:id',           ctrl.obtenerPQRS);
 
+// GET  /api/pqrs/:id/pdf — Descarga segura del archivo PDF
+router.get('/:id/pdf',       ctrl.descargarPDF);
+
 // PATCH /api/pqrs/:id/estado  — Admin: cambia el estado
 router.patch('/:id/estado',  ctrl.actualizarEstado);
 

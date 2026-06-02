@@ -20,6 +20,10 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Bloquear acceso público directo a los PDFs de PQRS por seguridad
+app.use('/uploads/pqrs', (_req, res) => {
+  res.status(403).json({ message: 'Acceso denegado. Usa el endpoint seguro de la API para descargar PDFs.' });
+});
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));
 
 // ── Root route ───────────────────────────────────────────────────────────────

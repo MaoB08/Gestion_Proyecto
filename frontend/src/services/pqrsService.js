@@ -42,7 +42,16 @@ export async function actualizarEstado(id, estado) {
   if (!res.ok) throw new Error(json.message || 'Error al actualizar estado');
   return json;
 }
-
+// ── Descargar PDF de respuesta ────────────────────────────────────────────────
+export async function descargarPDF(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  const res = await fetch(`${API}/${id}/pdf?${qs}`);
+  if (!res.ok) {
+    const json = await res.json().catch(() => ({}));
+    throw new Error(json.message || 'Error al descargar PDF');
+  }
+  return await res.blob();
+}
 // ── Responder una PQRS (Admin) ────────────────────────────────────────────────
 export async function responderPQRS(id, payload) {
   const res = await fetch(`${API}/${id}/responder`, {

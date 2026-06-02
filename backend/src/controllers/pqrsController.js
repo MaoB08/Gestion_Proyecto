@@ -179,10 +179,51 @@ exports.eliminarPQRS = async (req, res) => {
     const pqrs = await PQRS.findByIdAndDelete(req.params.id);
     if (!pqrs) return res.status(404).json({ message: 'PQRS no encontrada' });
 
-    // Eliminar respuesta asociada si existe
-    await RespuestaPQRS.deleteOne({ pqrsId: req.params.id });
+    // Eliminar respuesta asociada si existe y su archivo PDF
+    const respuesta = await RespuestaPQRS.findOne({ pqrsId: req.params.id });
+    if (respuesta) {
+      if (respuesta.pdfPath) {
+        const fs = require('fs');
+        if (fs.existsSync(respuesta.pdfPath)) {
+          fs.unlinkSync(respuesta.pdfPath); // Borrar archivo físico
+        }
+      }
+      await RespuestaPQRS.deleteOne({ _id: respuesta._id });
+    }
 
     res.json({ message: 'PQRS eliminada correctamente' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GET /api/pqrs/:id/pdf
+//  Descarga segura del archivo PDF (verifica que exista y devuelve el archivo).
+// ═══════════════════════════════════════════════════════════════════════════════
+exports.descargarPDF = async (req, res) => {
+  try {
+    const { role, userId } = req.query; // Para validación básica
+    
+    const respuesta = await RespuestaPQRS.findOne({ pqrsId: req.params.id }).populate('pqrsId');
+    if (!respuesta || !respuesta.pdfPath) {
+      return res.status(404).json({ message: 'PDF no encontrado' });
+    }
+
+    // Validación de permisos (Admin o Dueño de la PQRS)
+    if (role !== 'admin') {
+      if (String(respuesta.pqrsId.userId) !== String(userId)) {
+        return res.status(403).json({ message: 'No tienes permiso para descargar este documento' });
+      }
+    }
+
+    const fs = require('fs');
+    if (!fs.existsSync(respuesta.pdfPath)) {
+      return res.status(404).json({ message: 'El archivo físico del PDF no existe en el servidor' });
+    }
+
+    // Enviar el archivo
+    res.sendFile(respuesta.pdfPath);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

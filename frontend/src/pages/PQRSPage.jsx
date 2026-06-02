@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../context/AppContext'
-import { crearPQRS, listarPQRS } from '../services/pqrsService'
+import { crearPQRS, listarPQRS, descargarPDF } from '../services/pqrsService'
 
 const TIPO_LABEL   = { peticion: 'Petición', queja: 'Queja', reclamo: 'Reclamo', sugerencia: 'Sugerencia' }
 const ESTADO_LABEL = { pendiente: 'Pendiente', en_revision: 'En Revisión', resuelto: 'Resuelto', cerrado: 'Cerrado' }
@@ -92,6 +92,22 @@ export default function PQRSPage() {
       setFormError(err.message)
     } finally {
       setSubmitting(false)
+    }
+  }
+
+  const handleDescargarPDF = async (pqrsId) => {
+    try {
+      const blob = await descargarPDF(pqrsId, { role: currentUser.role, userId: currentUser.id || currentUser._id })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PQRS_Respuesta_${pqrsId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message)
     }
   }
 
@@ -335,11 +351,18 @@ export default function PQRSPage() {
               </div>
               {selected.respuesta.pdfPath && (
                 <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 6, color: '#059669', fontSize: 12 }}>
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <svg width="13" height="13" viewBox="0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
                     <polyline points="14 2 14 8 20 8"/>
                   </svg>
                   La respuesta oficial también fue enviada a tu correo en formato PDF.
+                  <button 
+                    onClick={() => handleDescargarPDF(selected._id)}
+                    className="btn-ghost"
+                    style={{ marginLeft: 'auto', color: '#059669', fontWeight: 700, textDecoration: 'underline', padding: 0, border: 'none', background: 'none' }}
+                  >
+                    Ver PDF
+                  </button>
                 </div>
               )}
             </div>

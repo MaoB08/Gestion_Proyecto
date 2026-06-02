@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../../components/Sidebar'
-import { listarPQRS, responderPQRS, eliminarPQRS, actualizarEstado, obtenerStats } from '../../services/pqrsService'
+import { listarPQRS, responderPQRS, eliminarPQRS, actualizarEstado, obtenerStats, descargarPDF } from '../../services/pqrsService'
 
 const TIPO_LABEL   = { peticion: 'Petición', queja: 'Queja', reclamo: 'Reclamo', sugerencia: 'Sugerencia' }
 const ESTADO_LABEL = { pendiente: 'Pendiente', en_revision: 'En Revisión', resuelto: 'Resuelto', cerrado: 'Cerrado' }
@@ -44,6 +44,7 @@ export default function AdminPQRSPage() {
   const [feedback,     setFeedback]     = useState('')
   const [filtroEstado, setFiltroEstado] = useState('')
   const [filtroTipo,   setFiltroTipo]   = useState('')
+  const [busqueda,     setBusqueda]     = useState('')
   const [modal,        setModal]        = useState(null)
   const [selected,     setSelected]     = useState(null)
   const [respTexto,    setRespTexto]    = useState('')
@@ -95,6 +96,30 @@ export default function AdminPQRSPage() {
     try { await eliminarPQRS(selected._id); notify('🗑️ PQRS eliminada.'); closeModal(); cargar() }
     catch (err) { setError(err.message) }
   }
+
+  const handleDescargarPDF = async (pqrsId) => {
+    try {
+      const blob = await descargarPDF(pqrsId, { role: currentUser.role, userId: currentUser.id || currentUser._id })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `PQRS_Respuesta_${pqrsId}.pdf`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message)
+    }
+  }
+
+  const listaFiltrada = lista.filter(p => {
+    if (!busqueda) return true;
+    const b = busqueda.toLowerCase();
+    return p.userName.toLowerCase().includes(b) || 
+           p.asunto.toLowerCase().includes(b) || 
+           String(p._id).toLowerCase().includes(b);
+  });
 
   return (
     <>
@@ -152,6 +177,19 @@ export default function AdminPQRSPage() {
         <div className="card" style={{ marginBottom: 20 }}>
           <div className="card-body" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', padding: '14px 20px' }}>
             <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>Filtrar:</span>
+            
+            <div className="search-wrap" style={{ flex: 1, minWidth: 200 }}>
+              <span className="search-icon">🔍</span>
+              <input 
+                type="text" 
+                className="form-input" 
+                placeholder="Buscar por ID, asunto o solicitante..." 
+                value={busqueda} 
+                onChange={e => setBusqueda(e.target.value)}
+                style={{ paddingLeft: 34, paddingRight: 10, paddingBottom: 6, paddingTop: 6, fontSize: 13, minWidth: 0 }}
+              />
+            </div>
+
             <select className="form-select" style={{ width: 170, padding: '6px 10px', fontSize: 13 }}
               value={filtroEstado} onChange={e => setFiltroEstado(e.target.value)}>
               <option value="">Todos los estados</option>
@@ -162,8 +200,8 @@ export default function AdminPQRSPage() {
               <option value="">Todos los tipos</option>
               {Object.entries(TIPO_LABEL).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
             </select>
-            {(filtroEstado || filtroTipo) && (
-              <button className="btn btn-ghost btn-sm" onClick={() => { setFiltroEstado(''); setFiltroTipo('') }}>
+            {(filtroEstado || filtroTipo || busqueda) && (
+              <button className="btn btn-ghost btn-sm" onClick={() => { setFiltroEstado(''); setFiltroTipo(''); setBusqueda(''); }}>
                 ✕ Limpiar
               </button>
             )}
@@ -191,7 +229,7 @@ export default function AdminPQRSPage() {
                       <div className="empty-state-title">Cargando...</div>
                     </div>
                   </td></tr>
-                ) : lista.length === 0 ? (
+                ) : listaFiltrada.length === 0 ? (
                   <tr><td colSpan={6}>
                     <div className="empty-state" style={{ padding: '60px 0' }}>
                       <span className="empty-state-icon">
@@ -200,11 +238,11 @@ export default function AdminPQRSPage() {
                           <polyline points="22,6 12,13 2,6"/>
                         </svg>
                       </span>
-                      <div className="empty-state-title">Sin PQRS registradas</div>
-                      <div className="empty-state-desc">Cuando los usuarios envíen solicitudes, aparecerán aquí.</div>
+                      <div className="empty-state-title">Sin resultados</div>
+                      <div className="empty-state-desc">No se encontraron PQRS que coincidan con tu búsqueda.</div>
                     </div>
                   </td></tr>
-                ) : lista.map(pqrs => (
+                ) : listaFiltrada.map(pqrs => (
                   <tr key={pqrs._id} style={{ cursor: 'pointer' }} onClick={() => abrirDetalle(pqrs)}>
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -306,6 +344,13 @@ export default function AdminPQRSPage() {
                     <polyline points="14 2 14 8 20 8"/>
                   </svg>
                   PDF generado y enviado al usuario por correo.
+                  <button 
+                    onClick={() => handleDescargarPDF(selected._id)}
+                    className="btn-ghost"
+                    style={{ marginLeft: 'auto', color: '#059669', fontWeight: 700, textDecoration: 'underline', padding: 0, border: 'none', background: 'none' }}
+                  >
+                    Ver PDF
+                  </button>
                 </div>
               )}
             </div>
