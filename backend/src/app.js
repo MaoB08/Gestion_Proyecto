@@ -9,6 +9,7 @@ const teacherRoutes  = require('./routes/teacherRoutes');
 const studentRoutes  = require('./routes/studentRoutes');
 const authRoutes     = require('./routes/authRoutes');
 const gradeRoutes    = require('./routes/gradeRoutes');
+const pqrsRoutes     = require('./routes/pqrsRoutes');
 
 const app = express();
 
@@ -34,6 +35,7 @@ app.use('/api/classes',  classRoutes);
 app.use('/api/teachers', teacherRoutes);
 app.use('/api/students', studentRoutes);
 app.use('/api/grades',   gradeRoutes);
+app.use('/api/pqrs',     pqrsRoutes);
 
 // ── Health check ──────────────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
