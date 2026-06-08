@@ -10,6 +10,8 @@ const QUICK_BUTTONS = [
   { id: 'ok',     label: '✅ Entendido' },
 ]
 
+import { logUserIP } from '../../services/classReportService'
+
 export default function ClassroomStudent({ classId }) {
   const {
     currentUser, users, courses,
@@ -43,6 +45,13 @@ export default function ClassroomStudent({ classId }) {
   const [elapsed, setElapsed]       = useState(0)
 
   const transcriptBottomRef = useRef(null)
+
+  // Log IP on join
+  useEffect(() => {
+    if (currentUser?.id && classId) {
+      logUserIP(classId, currentUser.id)
+    }
+  }, [classId, currentUser?.id])
 
   useEffect(() => {
     const t = setInterval(() => setElapsed(e => e + 1), 1000)

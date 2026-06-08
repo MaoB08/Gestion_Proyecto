@@ -61,12 +61,14 @@ export default function Sidebar() {
       { id: 'courses',    icon: '📚', label: 'Cursos' },
       { id: 'enrollment', icon: '📋', label: 'Solicitudes de Inscripción', badge: totalPending },
       { id: 'reports',    icon: '📊', label: 'Reportes' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
       { id: 'pqrs',       icon: PqrsIcon, label: 'PQRS', badge: pqrsPendingCount },
     ],
     teacher: [
       { id: 'dashboard', icon: '🏠', label: 'Inicio' },
       { id: 'my-courses',icon: '📚', label: 'Mis Cursos' },
       { id: 'history',   icon: '📋', label: 'Historial de clases' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
       { id: 'pqrs',      icon: PqrsIcon, label: 'PQRS' },
     ],
     student: [
@@ -74,6 +76,7 @@ export default function Sidebar() {
       { id: 'my-courses',icon: '📚', label: 'Mis Cursos' },
       { id: 'explore',   icon: '🔍', label: 'Explorar Cursos' },
       { id: 'history',   icon: '📋', label: 'Historial' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
       { id: 'pqrs',      icon: PqrsIcon, label: 'PQRS' },
     ],
   }

@@ -37,6 +37,13 @@ const AttentionCheckSchema = new mongoose.Schema({
   status:      { type: String, enum: ['active', 'completed'], default: 'active' },
 });
 
+const IpLogSchema = new mongoose.Schema({
+  userId:    { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  ip:        { type: String, default: '0.0.0.0' },
+  location:  { type: String, default: 'No disponible' },
+  timestamp: { type: Date, default: Date.now },
+});
+
 // ── CLASS ─────────────────────────────────────────────────────────────────────
 const ClassSchema = new mongoose.Schema({
   courseId:           { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
@@ -50,10 +57,12 @@ const ClassSchema = new mongoose.Schema({
   transcription:      [TranscriptionSegmentSchema],
   savedTranscription: String,
   summary:            String,
+  duration:           String, // Actual timed duration of the class
   participantIds:     [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   questions:          [QuestionSchema],
   attendance:         [AttendanceSchema],
   attentionChecks:    [AttentionCheckSchema],
+  ipLogs:             [IpLogSchema], // Security: IP/location logs per user (admin only)
   createdAt:          { type: Date, default: Date.now },
 });
 
