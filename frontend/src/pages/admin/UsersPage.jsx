@@ -3,7 +3,7 @@ import { useApp } from '../../context/AppContext'
 import { DOMAIN_AREAS } from '../../context/AppContext'
 import { Avatar } from '../../components/Sidebar'
 
-const API = (import.meta.env.VITE_API_URL || (import.meta.env.VITE_API_URL || 'http://localhost:3001'))
+const API = (import.meta.env.VITE_API_URL || ((import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')))
 
 // ── Reusable modal shell ──────────────────────────────────────────────────────
 function Modal({ title, onClose, children, footer, size = '' }) {

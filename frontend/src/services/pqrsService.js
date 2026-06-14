@@ -1,4 +1,4 @@
-const API = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/pqrs';
+const API = ((import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')) + '/api/pqrs';
 
 // ── Crear una nueva PQRS ──────────────────────────────────────────────────────
 export async function crearPQRS(data) {

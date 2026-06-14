@@ -10,7 +10,7 @@ export default function ReportsPage() {
 
   const fetchHistory = async () => {
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/teachers/history')
+      const res = await fetch(((import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')) + '/api/teachers/history')
       if (res.ok) {
         const data = await res.json()
         setTeacherHistory(data)

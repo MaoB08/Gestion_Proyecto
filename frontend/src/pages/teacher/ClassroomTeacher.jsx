@@ -31,7 +31,7 @@ export default function ClassroomTeacher({ classId }) {
   useEffect(() => {
     if (!clsContext && classId && !dynamicCls && !fetchError && !isFetching) {
       setIsFetching(true)
-      fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}`)
+      fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/classes/${classId}`)
         .then(r => r.json())
         .then(data => {
           setIsFetching(false)
@@ -260,7 +260,7 @@ export default function ClassroomTeacher({ classId }) {
     const m = Math.floor((elapsed % 3600) / 60)
     const durationStr = h > 0 ? `${h}h ${m}min` : `${m} minutos`
     try {
-      await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}`, {
+      await fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/classes/${classId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ duration: durationStr }),
@@ -273,7 +273,7 @@ export default function ClassroomTeacher({ classId }) {
     if (window.confirm('✅ Clase finalizada. ¿Deseas descargar el reporte de finalización en PDF?')) {
       try {
         const role = currentUser.role === 'admin' ? 'admin' : 'teacher'
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/class-reports/${classId}/download?role=${role}&userId=${currentUser.id}`)
+        const res = await fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/class-reports/${classId}/download?role=${role}&userId=${currentUser.id}`)
         if (res.ok) {
           const blob = await res.blob()
           const url = window.URL.createObjectURL(blob)

@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/class-reports';
+const API_BASE = ((import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')) + '/api/class-reports';
 
 /**
  * Download class completion report as PDF.

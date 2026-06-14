@@ -217,7 +217,7 @@ function ManageContentsModal({ courseId, onClose }) {
                     {cnt.fileUrl && (
                       <div style={{ marginTop: 10 }}>
                         <a
-                          href={`${import.meta.env.VITE_API_URL || "http://localhost:3001"}${cnt.fileUrl}`}
+                          href={`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}${cnt.fileUrl}`}
                           download={cnt.originalName || cnt.title}
                           target="_blank"
                           rel="noreferrer"
@@ -361,7 +361,7 @@ function AdvancedGradesModal({ courseId, onClose }) {
     setError('')
     setResults([])
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/grades/course/${courseId}/tier?tier=${tier}`)
+      const res = await fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/grades/course/${courseId}/tier?tier=${tier}`)
       if (!res.ok) {
         const json = await res.json()
         setError(json.message || 'Error al consultar')
@@ -843,7 +843,7 @@ function CourseStudentsModal({ courseId, onClose }) {
     const fetchStudents = async () => {
       try {
         // Esta llamada espera que el backend resuelva la agregación con $project
-        const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/students`)
+        const res = await fetch(`${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/courses/${courseId}/students`)
         if (res.ok) {
           const data = await res.json()
           setEnrolledStudents(data)

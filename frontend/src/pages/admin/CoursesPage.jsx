@@ -51,7 +51,7 @@ export default function CoursesPage() {
         return
       }
       try {
-        let url = `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses?sortBy=${sortConfig.field}&order=${sortConfig.order}`
+        let url = `${(import.meta.env.VITE_API_URL || "http://localhost:3001").replace(/\/+$/, "")}/api/courses?sortBy=${sortConfig.field}&order=${sortConfig.order}`
         if (filterCategory) url += `&category=${encodeURIComponent(filterCategory)}`
         if (filterEstado) url += `&estado=${encodeURIComponent(filterEstado)}`
         
@@ -88,7 +88,7 @@ export default function CoursesPage() {
     setReportModal(true)
     setReportLoading(true)
     try {
-      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/courses/reports/categories')
+      const res = await fetch(((import.meta.env.VITE_API_URL || 'http://localhost:3001').replace(/\/+$/, '')) + '/api/courses/reports/categories')
       if (res.ok) {
         const data = await res.json()
         setReportData(data)
