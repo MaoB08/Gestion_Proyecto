@@ -1,28 +1,32 @@
-// ─────────────────────────────────────────────────────────────────────────────
-//  backend/src/services/geminiService.js
-//  Server-side AI service — API key is kept in process.env (never exposed
-//  to the browser).
-// ─────────────────────────────────────────────────────────────────────────────
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || null;
 
-/** Internal helper — calls the Gemini REST API */
+/** Internal helper — calls the Gemini SDK */
 async function callGemini(prompt) {
-  if (!GEMINI_API_KEY) return null; // fallback to simulation
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { temperature: 0.7, maxOutputTokens: 1024 },
-      }),
+  console.log(`[Gemini Service] callGemini invocado. API Key configurada: ${!!GEMINI_API_KEY}`);
+  if (!GEMINI_API_KEY) {
+    console.log('[Gemini Service] Usando fallback de simulación (API Key no configurada o vacía).');
+    return null; 
+  }
+  try {
+    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+    const result = await model.generateContent(prompt);
+    
+    if (!result || !result.response) {
+      console.error('[Gemini Service] Estructura de respuesta inesperada o vacía.');
+      return null;
     }
-  );
-  const data = await res.json();
-  return data?.candidates?.[0]?.content?.parts?.[0]?.text || null;
+    
+    const text = result.response.text();
+    return text;
+  } catch (err) {
+    console.error('[Gemini Service] Excepción al llamar a Gemini SDK:', err);
+    return null;
+  }
 }
+
 
 // ── Simulated data (used when GEMINI_API_KEY is not set) ──────────────────────
 const TOPIC_SIMULATIONS = [

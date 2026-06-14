@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useApp } from '../../context/AppContext'
 import { Avatar } from '../../components/Sidebar'
-import { summarizeTranscription, identifyTopics, partialSummary } from '../../services/geminiService'
+import { summarizeTranscription, identifyTopics, partialSummary, askAboutTranscription } from '../../services/geminiService'
 
 const QUICK_ACTIONS = ['¿Puede parar, profesor?', '¿Puede repetir?', '¿Puede ir más despacio?', 'No escucho']
 
@@ -260,9 +260,14 @@ export default function ClassroomTeacher({ classId }) {
     const text = getFullText()
     if (!text) { alert('Aún no hay transcripción para analizar.'); return }
     setAiLoading(true)
-    const topics = await identifyTopics(text)
-    setAiTopics(topics.split('\n').filter(Boolean))
-    setAiLoading(false)
+    try {
+      const topics = await identifyTopics(classId)
+      setAiTopics(topics.split('\n').filter(Boolean))
+    } catch (err) {
+      alert(err.message || 'Error al obtener temas clave')
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const handlePartialSummary = async () => {
@@ -271,9 +276,14 @@ export default function ClassroomTeacher({ classId }) {
     setShowAI(true)
     setAiLoading(true)
     setAiMessages(prev => [...prev, { role: 'user', text: '📋 Resumen parcial de lo explicado hasta ahora' }])
-    const res = await partialSummary(text)
-    setAiMessages(prev => [...prev, { role: 'ai', text: res }])
-    setAiLoading(false)
+    try {
+      const res = await partialSummary(classId)
+      setAiMessages(prev => [...prev, { role: 'ai', text: res }])
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: `Error: ${err.message || 'No se pudo obtener el resumen parcial.'}` }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const handleFinalSummary = async () => {
@@ -282,10 +292,15 @@ export default function ClassroomTeacher({ classId }) {
     setShowAI(true)
     setAiLoading(true)
     setAiMessages(prev => [...prev, { role: 'user', text: '📝 Generar resumen completo de la clase' }])
-    const res = await summarizeTranscription(text)
-    setAiMessages(prev => [...prev, { role: 'ai', text: res }])
-    setSummary(classId, res)
-    setAiLoading(false)
+    try {
+      const res = await summarizeTranscription(classId)
+      setAiMessages(prev => [...prev, { role: 'ai', text: res }])
+      setSummary(classId, res)
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: `Error: ${err.message || 'No se pudo generar el resumen completo.'}` }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const handleAIAsk = async () => {
@@ -295,10 +310,14 @@ export default function ClassroomTeacher({ classId }) {
     setShowAI(true)
     setAiMessages(prev => [...prev, { role: 'user', text: q }])
     setAiLoading(true)
-    const { askAboutTranscription } = await import('../../services/geminiService')
-    const res = await askAboutTranscription(getFullText(), q)
-    setAiMessages(prev => [...prev, { role: 'ai', text: res }])
-    setAiLoading(false)
+    try {
+      const res = await askAboutTranscription(classId, q)
+      setAiMessages(prev => [...prev, { role: 'ai', text: res }])
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: `Error: ${err.message || 'No se pudo procesar la pregunta.'}` }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   if (!cls) {

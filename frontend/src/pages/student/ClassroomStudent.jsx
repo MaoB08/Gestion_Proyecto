@@ -127,9 +127,14 @@ export default function ClassroomStudent({ classId }) {
     setShowAI(true)
     setAiLoading(true)
     setAiMessages(prev => [...prev, { role: 'user', text: '📋 ¿Puedes hacer un resumen de lo explicado?' }])
-    const res = await partialSummary(text)
-    setAiMessages(prev => [...prev, { role: 'ai', text: res }])
-    setAiLoading(false)
+    try {
+      const res = await partialSummary(classId)
+      setAiMessages(prev => [...prev, { role: 'ai', text: res }])
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: `Error: ${err.message || 'No se pudo obtener el resumen.'}` }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   const handleAIAsk = async () => {
@@ -139,9 +144,14 @@ export default function ClassroomStudent({ classId }) {
     setShowAI(true)
     setAiMessages(prev => [...prev, { role: 'user', text: q }])
     setAiLoading(true)
-    const res = await askAboutTranscription(getFullText(), q)
-    setAiMessages(prev => [...prev, { role: 'ai', text: res }])
-    setAiLoading(false)
+    try {
+      const res = await askAboutTranscription(classId, q)
+      setAiMessages(prev => [...prev, { role: 'ai', text: res }])
+    } catch (err) {
+      setAiMessages(prev => [...prev, { role: 'ai', text: `Error: ${err.message || 'No se pudo obtener respuesta de la IA.'}` }])
+    } finally {
+      setAiLoading(false)
+    }
   }
 
   if (!cls) return <div style={{ padding: 40 }}>Clase no encontrada o ya finalizada.</div>

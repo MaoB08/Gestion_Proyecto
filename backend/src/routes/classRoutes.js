@@ -22,6 +22,12 @@ router.put('/:id/transcription/save', classController.saveTranscription);
 // Summary
 router.put('/:id/summary', classController.setSummary);
 
+// AI Actions
+router.post('/:id/ai/topics', classController.getAITopics);
+router.post('/:id/ai/summary', classController.getAISummary);
+router.post('/:id/ai/partial-summary', classController.getAIPartialSummary);
+router.post('/:id/ai/ask', classController.askAI);
+
 // Questions
 router.post('/:id/questions', classController.addQuestion);
 router.put('/:classId/questions/:questionId/answer', classController.answerQuestion);

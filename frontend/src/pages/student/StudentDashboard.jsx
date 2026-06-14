@@ -77,6 +77,108 @@ function ConfirmModal({ course, onConfirm, onCancel, loading }) {
   )
 }
 
+// ── Summary Modal ─────────────────────────────────────────────────────────────
+function SummaryModal({ cl, onClose }) {
+  const [copied, setCopied] = useState(false)
+  if (!cl) return null
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(cl.summary || '')
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(err => console.error('Error copying text:', err))
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9000,
+      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'var(--card-bg, #fff)', borderRadius: 16, padding: '28px',
+        width: 600, maxWidth: '90vw', maxHeight: '80vh', boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
+        display: 'flex', flexDirection: 'column', gap: 16,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-color, #111)' }}>📋 Resumen de la Clase</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted, #666)', marginTop: 2 }}>{cl.title}</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ fontSize: 18 }}>✕</button>
+        </div>
+        <div style={{
+          overflowY: 'auto', flex: 1, paddingRight: 8,
+          fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text-color, #333)'
+        }}>
+          {cl.summary}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #eee', paddingTop: 12 }}>
+          <button className="btn btn-sm btn-outline" onClick={handleCopy}>
+            {copied ? '📋 ¡Copiado!' : '📋 Copiar'}
+          </button>
+          <button className="btn btn-sm btn-primary" style={{ color: 'white' }} onClick={onClose}>
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Transcription Modal ───────────────────────────────────────────────────────
+function TranscriptionModal({ cl, onClose }) {
+  const [copied, setCopied] = useState(false)
+  if (!cl) return null
+
+  const fullText = cl.savedTranscription || (cl.transcription || []).map(s => s.text).join(' ')
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(fullText)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(err => console.error('Error copying text:', err))
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9000,
+      background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+    }}>
+      <div style={{
+        background: 'var(--card-bg, #fff)', borderRadius: 16, padding: '28px',
+        width: 600, maxWidth: '90vw', maxHeight: '80vh', boxShadow: '0 8px 40px rgba(0,0,0,0.2)',
+        display: 'flex', flexDirection: 'column', gap: 16,
+      }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #eee', paddingBottom: 12 }}>
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 18, color: 'var(--text-color, #111)' }}>📝 Transcripción de la Clase</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted, #666)', marginTop: 2 }}>{cl.title}</div>
+          </div>
+          <button className="btn btn-ghost btn-sm" onClick={onClose} style={{ fontSize: 18 }}>✕</button>
+        </div>
+        <div style={{
+          overflowY: 'auto', flex: 1, paddingRight: 8,
+          fontSize: 14, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: 'var(--text-color, #333)'
+        }}>
+          {fullText || 'No hay transcripción registrada para esta clase.'}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, borderTop: '1px solid #eee', paddingTop: 12 }}>
+          <button className="btn btn-sm btn-outline" onClick={handleCopy} disabled={!fullText}>
+            {copied ? '📋 ¡Copiado!' : '📋 Copiar'}
+          </button>
+          <button className="btn btn-sm btn-primary" style={{ color: 'white' }} onClick={onClose}>
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 export default function StudentDashboard() {
   const {
@@ -95,6 +197,9 @@ export default function StudentDashboard() {
   const [enrollLoading, setEnrollLoading] = useState(false)
   const [unenrollLoading, setUnenrollLoading] = useState(null) // courseId being unenrolled
   const [currentTime, setCurrentTime]         = useState(new Date())
+  const [selectedSummaryClass, setSelectedSummaryClass] = useState(null)
+  const [selectedTranscriptionClass, setSelectedTranscriptionClass] = useState(null)
+
 
   // Dynamic state for index-optimized routes
   const [myDynamicCourses, setMyDynamicCourses] = useState([])
@@ -262,6 +367,14 @@ export default function StudentDashboard() {
         onConfirm={handleConfirmEnroll}
         onCancel={() => setConfirmCourse(null)}
         loading={enrollLoading}
+      />
+      <SummaryModal
+        cl={selectedSummaryClass}
+        onClose={() => setSelectedSummaryClass(null)}
+      />
+      <TranscriptionModal
+        cl={selectedTranscriptionClass}
+        onClose={() => setSelectedTranscriptionClass(null)}
       />
 
       <div className="topbar">
@@ -490,14 +603,30 @@ export default function StudentDashboard() {
                         <td style={{ fontSize: 12 }}>{course?.name}</td>
                         <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{cl.date}</td>
                         <td>
-                          {cl.savedTranscription
-                            ? <span className="badge badge-success">✅ Disponible</span>
-                            : <span className="badge badge-gray">Sin guardar</span>}
+                          {cl.savedTranscription || (cl.transcription && cl.transcription.length > 0) ? (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => setSelectedTranscriptionClass(cl)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: 11 }}
+                            >
+                              👁️ Ver Transcripción
+                            </button>
+                          ) : (
+                            <span className="badge badge-gray">Sin guardar</span>
+                          )}
                         </td>
                         <td>
-                          {cl.summary
-                            ? <span className="badge badge-primary">🤖 Generado</span>
-                            : <span className="badge badge-gray">—</span>}
+                          {cl.summary ? (
+                            <button
+                              className="btn btn-sm btn-outline"
+                              onClick={() => setSelectedSummaryClass(cl)}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '4px 8px', fontSize: 11 }}
+                            >
+                              👁️ Ver Resumen
+                            </button>
+                          ) : (
+                            <span className="badge badge-gray">—</span>
+                          )}
                         </td>
                       </tr>
                     )

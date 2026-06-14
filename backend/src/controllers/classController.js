@@ -1,4 +1,5 @@
 const Class = require('../models/Class');
+const geminiService = require('../services/geminiService');
 
 // @desc  Get all classes
 // @route GET /api/classes
@@ -43,7 +44,12 @@ exports.getByCourse = async (req, res) => {
 // @route GET /api/classes/participant/:userId
 exports.getByParticipant = async (req, res) => {
   try {
-    const classes = await Class.find({ participantIds: req.params.userId }).populate('courseId', 'name');
+    const classes = await Class.find({
+      $or: [
+        { participantIds: req.params.userId },
+        { 'attendance.userId': req.params.userId }
+      ]
+    }).populate('courseId', 'name');
     res.set('X-DB-Optimization', 'index_class_participantIds');
     res.json(classes);
   } catch (err) {
@@ -350,3 +356,87 @@ exports.completeAttentionCheck = async (req, res) => {
     res.status(400).json({ message: err.message });
   }
 };
+
+// @desc  Get AI Topics from class transcription
+// @route POST /api/classes/:id/ai/topics
+exports.getAITopics = async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const text = (cls.transcription || []).map(s => s.text).join(' ');
+    if (!text.trim()) {
+      return res.status(400).json({ message: 'Aún no hay transcripción para analizar.' });
+    }
+
+    const topics = await geminiService.identifyTopics(text);
+    res.json({ topics });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Get AI Summary from class transcription (and save it in database)
+// @route POST /api/classes/:id/ai/summary
+exports.getAISummary = async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const text = (cls.transcription || []).map(s => s.text).join(' ');
+    if (!text.trim()) {
+      return res.status(400).json({ message: 'Sin transcripción para resumir.' });
+    }
+
+    const summary = await geminiService.summarizeTranscription(text);
+    
+    // Save to database
+    cls.summary = summary;
+    await cls.save();
+
+    res.json({ summary });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Get AI Partial Summary from class transcription
+// @route POST /api/classes/:id/ai/partial-summary
+exports.getAIPartialSummary = async (req, res) => {
+  try {
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const text = (cls.transcription || []).map(s => s.text).join(' ');
+    if (!text.trim()) {
+      return res.status(400).json({ message: 'Aún no hay transcripción.' });
+    }
+
+    const summary = await geminiService.partialSummary(text);
+    res.json({ summary });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
+// @desc  Ask AI about class transcription
+// @route POST /api/classes/:id/ai/ask
+exports.askAI = async (req, res) => {
+  try {
+    const { question } = req.body;
+    if (!question || !question.trim()) {
+      return res.status(400).json({ message: 'La pregunta es obligatoria.' });
+    }
+
+    const cls = await Class.findById(req.params.id);
+    if (!cls) return res.status(404).json({ message: 'Clase no encontrada' });
+
+    const text = (cls.transcription || []).map(s => s.text).join(' ');
+
+    const answer = await geminiService.askAboutTranscription(text, question);
+    res.json({ answer });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
