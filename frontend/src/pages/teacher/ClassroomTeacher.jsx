@@ -5,6 +5,8 @@ import { summarizeTranscription, identifyTopics, partialSummary, askAboutTranscr
 
 const QUICK_ACTIONS = ['¿Puede parar, profesor?', '¿Puede repetir?', '¿Puede ir más despacio?', 'No escucho']
 
+import { logUserIP } from '../../services/classReportService'
+
 export default function ClassroomTeacher({ classId }) {
   const {
     currentUser, users, courses, classes,
@@ -18,6 +20,13 @@ export default function ClassroomTeacher({ classId }) {
   const [dynamicCls, setDynamicCls] = useState(null)
   const [fetchError, setFetchError] = useState(null)
   const [isFetching, setIsFetching] = useState(false)
+  
+  // Log IP on join
+  useEffect(() => {
+    if (currentUser?.id && classId) {
+      logUserIP(classId, currentUser.id)
+    }
+  }, [classId, currentUser?.id])
   
   useEffect(() => {
     if (!clsContext && classId && !dynamicCls && !fetchError && !isFetching) {
@@ -245,7 +254,42 @@ export default function ClassroomTeacher({ classId }) {
     if (!window.confirm('¿Finalizar la clase? Se guardará la transcripción automáticamente.')) return
     saveTranscription(classId)
     stopRecognition()
+
+    // Save class duration
+    const h = Math.floor(elapsed / 3600)
+    const m = Math.floor((elapsed % 3600) / 60)
+    const durationStr = h > 0 ? `${h}h ${m}min` : `${m} minutos`
+    try {
+      await fetch(`http://localhost:3001/api/classes/${classId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ duration: durationStr }),
+      }).catch(() => {})
+    } catch {}
+
     await deactivateClass(classId)
+
+    // Offer report download
+    if (window.confirm('✅ Clase finalizada. ¿Deseas descargar el reporte de finalización en PDF?')) {
+      try {
+        const role = currentUser.role === 'admin' ? 'admin' : 'teacher'
+        const res = await fetch(`http://localhost:3001/api/class-reports/${classId}/download?role=${role}&userId=${currentUser.id}`)
+        if (res.ok) {
+          const blob = await res.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = `Reporte_Clase_${classId}.pdf`
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+        }
+      } catch (err) {
+        console.error('Error downloading report:', err)
+      }
+    }
+
     setActiveClassId(null)
     setActivePage('dashboard')
   }

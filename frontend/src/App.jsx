@@ -20,6 +20,13 @@ import ClassroomTeacher from './pages/teacher/ClassroomTeacher'
 import StudentDashboard from './pages/student/StudentDashboard'
 import ClassroomStudent from './pages/student/ClassroomStudent'
 
+// Pages – PQRS
+import PQRSPage from './pages/PQRSPage'
+import AdminPQRSPage from './pages/admin/AdminPQRSPage'
+
+// Pages – Class Reports
+import ClassReportPage from './pages/ClassReportPage'
+
 // Shared layout
 import Sidebar from './components/Sidebar'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -96,6 +103,8 @@ function AdminRouter({ page, classId }) {
     case 'courses':    return <CoursesPage />
     case 'reports':    return <ReportsPage />
     case 'enrollment': return <EnrollmentRequestsPage />
+    case 'pqrs':       return <AdminPQRSPage />
+    case 'class-reports': return <ClassReportPage />
     case 'classroom':  return classId ? <ClassroomTeacher classId={classId} /> : <AdminDashboard />
     default:           return <AdminDashboard />
   }
@@ -104,6 +113,8 @@ function AdminRouter({ page, classId }) {
 function TeacherRouter({ page, classId }) {
   switch (page) {
     case 'classroom': return classId ? <ClassroomTeacher classId={classId} /> : <TeacherDashboard />
+    case 'pqrs':      return <PQRSPage />
+    case 'class-reports': return <ClassReportPage />
     default: return <TeacherDashboard />
   }
 }
@@ -111,6 +122,8 @@ function TeacherRouter({ page, classId }) {
 function StudentRouter({ page, classId }) {
   switch (page) {
     case 'classroom': return classId ? <ClassroomStudent classId={classId} /> : <StudentDashboard />
+    case 'pqrs':      return <PQRSPage />
+    case 'class-reports': return <ClassReportPage />
     default: return <StudentDashboard />
   }
 }

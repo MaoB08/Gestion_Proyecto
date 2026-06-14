@@ -34,4 +34,7 @@ CourseSchema.index({ category: 1, estado: 1 });
 // c. Índice multikey: Para buscar rápidamente todos los cursos en los que un estudiante está inscrito (studentIds es un array)
 CourseSchema.index({ studentIds: 1 });
 
+// d. Índice de texto (Text Index): Para búsquedas por palabras clave en nombre y descripción del curso
+CourseSchema.index({ name: 'text', description: 'text' });
+
 module.exports = mongoose.model('Course', CourseSchema);

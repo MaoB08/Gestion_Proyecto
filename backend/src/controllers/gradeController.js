@@ -56,7 +56,7 @@ exports.getGradesByStudent = async (req, res) => {
 exports.getGradesByTier = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { tier } = req.query;
+    const { tier, page = 1, limit = 50 } = req.query;
     const mongoose = require('mongoose');
 
     let gradeFilter;
@@ -76,11 +76,20 @@ exports.getGradesByTier = async (req, res) => {
 
     // contentId no tiene ref en el schema, es subdocumento embebido en Course.contents
     // Usamos aggregate + $lookup para obtener el título de la actividad
+    const skipCount = (parseInt(page) - 1) * parseInt(limit);
+    
     const results = await Grade.aggregate([
       {
         $match: {
-          courseId: new mongoose.Types.ObjectId(courseId),
-          grade: gradeFilter,
+          $and: [
+            { courseId: new mongoose.Types.ObjectId(courseId) },
+            {
+              $or: [
+                { grade: gradeFilter },
+                { grade: { $not: { $lt: -100 } } } // Ejemplo de $not para evitar notas irreales negativas
+              ]
+            }
+          ]
         },
       },
       // Join con Student para nombre/apellido
@@ -131,6 +140,8 @@ exports.getGradesByTier = async (req, res) => {
         },
       },
       { $sort: { grade: 1 } },
+      { $skip: skipCount },
+      { $limit: parseInt(limit) }
     ]);
 
     res.json(results);

@@ -17,6 +17,7 @@ export function Avatar({ user, size = 'md', style = {} }) {
 export default function Sidebar() {
   const { currentUser, logout, activePage, setActivePage, activeClassId, setActiveClassId, getActiveClasses, courses } = useApp()
   const [regPendingCount, setRegPendingCount] = useState(0)
+  const [pqrsPendingCount, setPqrsPendingCount] = useState(0)
 
   // Fetch pending account registration count for the admin badge
   useEffect(() => {
@@ -24,6 +25,11 @@ export default function Sidebar() {
     fetch('http://localhost:3001/api/students/pending')
       .then(r => r.ok ? r.json() : [])
       .then(data => setRegPendingCount(Array.isArray(data) ? data.length : 0))
+      .catch(() => {})
+
+    fetch('http://localhost:3001/api/pqrs/stats')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (data) setPqrsPendingCount(data.pendientes || 0) })
       .catch(() => {})
   }, [currentUser?.role, activePage])
 
@@ -41,6 +47,13 @@ export default function Sidebar() {
   const courseRequestsCount = courses.reduce((acc, c) => acc + (c.pendingStudentIds?.length || 0), 0)
   const totalPending = regPendingCount + courseRequestsCount
 
+  const PqrsIcon = (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ verticalAlign: 'middle' }}>
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+  );
+
   const navMap = {
     admin: [
       { id: 'dashboard',  icon: '🏠', label: 'Inicio' },
@@ -48,17 +61,23 @@ export default function Sidebar() {
       { id: 'courses',    icon: '📚', label: 'Cursos' },
       { id: 'enrollment', icon: '📋', label: 'Solicitudes de Inscripción', badge: totalPending },
       { id: 'reports',    icon: '📊', label: 'Reportes' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
+      { id: 'pqrs',       icon: PqrsIcon, label: 'PQRS', badge: pqrsPendingCount },
     ],
     teacher: [
       { id: 'dashboard', icon: '🏠', label: 'Inicio' },
       { id: 'my-courses',icon: '📚', label: 'Mis Cursos' },
       { id: 'history',   icon: '📋', label: 'Historial de clases' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
+      { id: 'pqrs',      icon: PqrsIcon, label: 'PQRS' },
     ],
     student: [
       { id: 'dashboard', icon: '🏠', label: 'Inicio' },
       { id: 'my-courses',icon: '📚', label: 'Mis Cursos' },
       { id: 'explore',   icon: '🔍', label: 'Explorar Cursos' },
       { id: 'history',   icon: '📋', label: 'Historial' },
+      { id: 'class-reports', icon: '📄', label: 'Reportes de Clase' },
+      { id: 'pqrs',      icon: PqrsIcon, label: 'PQRS' },
     ],
   }
 
