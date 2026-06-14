@@ -125,7 +125,7 @@ export function AppProvider({ children }) {
   const refreshData = useCallback(async () => {
     try {
       // 1. Fetch Courses
-      const resCourses = await fetch('http://localhost:3001/api/courses')
+      const resCourses = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/courses')
       if (resCourses.ok) {
         const dataCourses = await resCourses.json()
         setCourses(dataCourses.map(c => ({
@@ -143,9 +143,9 @@ export function AppProvider({ children }) {
 
       // 2. Fetch Teachers, Students and Admins
       const [resT, resS, resU] = await Promise.all([
-        fetch('http://localhost:3001/api/teachers'),
-        fetch('http://localhost:3001/api/students'),
-        fetch('http://localhost:3001/api/users')
+        fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/teachers'),
+        fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/students'),
+        fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/users')
       ])
 
       let allUsers = [...SEED_USERS];
@@ -187,7 +187,7 @@ export function AppProvider({ children }) {
       setUsers(allUsers)
 
       // 3. Fetch Classes
-      const resClasses = await fetch('http://localhost:3001/api/classes')
+      const resClasses = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/classes')
       if (resClasses.ok) {
         const dataClasses = await resClasses.json()
         setClasses(dataClasses.map(cl => ({
@@ -227,7 +227,7 @@ export function AppProvider({ children }) {
         body.longitude = longitude
       }
 
-      const res = await fetch('http://localhost:3001/api/auth/login', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -305,7 +305,7 @@ export function AppProvider({ children }) {
 
     // ── Call backend API ──────────────────────────────────────────────────────
     try {
-      const res = await fetch('http://localhost:3001/api/teachers', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/teachers', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -358,7 +358,7 @@ export function AppProvider({ children }) {
 
   const updateUser = async (role, id, data) => {
     try {
-      const endpoint = role === 'teacher' ? `http://localhost:3001/api/teachers/${id}` : `http://localhost:3001/api/students/${id}`;
+      const endpoint = role === 'teacher' ? `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/teachers/${id}` : `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/students/${id}`;
       const res = await fetch(endpoint, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -375,7 +375,7 @@ export function AppProvider({ children }) {
 
   const deleteUser = async (role, id) => {
     try {
-      const endpoint = role === 'teacher' ? `http://localhost:3001/api/teachers/${id}` : `http://localhost:3001/api/students/${id}`;
+      const endpoint = role === 'teacher' ? `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/teachers/${id}` : `${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/students/${id}`;
       const res = await fetch(endpoint, { method: 'DELETE' });
       const json = await res.json();
       if (!res.ok) return { success: false, error: json.message || json.error || 'Error al eliminar' };
@@ -389,7 +389,7 @@ export function AppProvider({ children }) {
   // ── COURSES ────────────────────────────────
   const createCourse = async (data) => {
     try {
-      const res = await fetch('http://localhost:3001/api/courses', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/courses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -420,7 +420,7 @@ export function AppProvider({ children }) {
   const updateCourse = async (id, data) => {
     try {
       const dbId = id.toString();
-      const res = await fetch(`http://localhost:3001/api/courses/${dbId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${dbId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
@@ -448,7 +448,7 @@ export function AppProvider({ children }) {
   const deleteCourse = async (id) => {
     try {
       const dbId = id.toString();
-      const res = await fetch(`http://localhost:3001/api/courses/${dbId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${dbId}`, {
         method: 'DELETE'
       });
       if (!res.ok) {
@@ -474,7 +474,7 @@ export function AppProvider({ children }) {
     }
 
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/${courseId}/enroll`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId }),
@@ -497,7 +497,7 @@ export function AppProvider({ children }) {
   // RF-08: POST /api/courses/:id/unenroll — persists to MongoDB
   const unenrollStudent = async (courseId, studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/${courseId}/unenroll`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/unenroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId }),
@@ -520,7 +520,7 @@ export function AppProvider({ children }) {
   // RF-08: POST /api/courses/:id/request-enroll
   const requestEnrollment = async (courseId, studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/${courseId}/request-enroll`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/request-enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId }),
@@ -538,7 +538,7 @@ export function AppProvider({ children }) {
   // Admin approval
   const approveEnrollment = async (courseId, studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/${courseId}/approve-enroll`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/approve-enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId }),
@@ -556,7 +556,7 @@ export function AppProvider({ children }) {
 
   const rejectEnrollment = async (courseId, studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/${courseId}/reject-enroll`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${courseId}/reject-enroll`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ studentId }),
@@ -576,7 +576,7 @@ export function AppProvider({ children }) {
   // RF-10: Create Class
   const createClass = async (data) => {
     try {
-      const res = await fetch('http://localhost:3001/api/classes', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/classes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -604,7 +604,7 @@ export function AppProvider({ children }) {
   // PUT /api/classes/:id/activate — persists to MongoDB
   const activateClass = async (classId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/activate`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/activate`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -625,7 +625,7 @@ export function AppProvider({ children }) {
   // RF-10 Adjustment: Finalize Class
   const deactivateClass = async (classId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/deactivate`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/deactivate`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -656,7 +656,7 @@ export function AppProvider({ children }) {
   // POST /api/classes/:id/join — persists to MongoDB
   const joinClass = async (classId, userId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/join`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/join`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -677,7 +677,7 @@ export function AppProvider({ children }) {
   // POST /api/classes/:id/leave — persists to MongoDB
   const leaveClass = async (classId, userId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/leave`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/leave`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -698,7 +698,7 @@ export function AppProvider({ children }) {
   // POST /api/classes/:id/transcription — persists to MongoDB
   const appendTranscription = useCallback(async (classId, segment) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/transcription`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/transcription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(segment)
@@ -728,7 +728,7 @@ export function AppProvider({ children }) {
     try {
       const cls = classes.find(cl => String(cl.id || cl._id) === String(classId))
       const text = (cls?.transcription || []).map(s => s.text).join(' ')
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/transcription/save`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/transcription/save`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
@@ -747,7 +747,7 @@ export function AppProvider({ children }) {
   // PUT /api/classes/:id/summary — persists to MongoDB
   const setSummary = async (classId, summary) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/summary`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/summary`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ summary }),
@@ -766,7 +766,7 @@ export function AppProvider({ children }) {
   const sendQuestion = async (classId, userId, text, isQuickReply = false) => {
     try {
       const user = users.find(u => u.id === userId)
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/questions`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/questions`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -793,7 +793,7 @@ export function AppProvider({ children }) {
   // PUT /api/classes/:classId/questions/:questionId/answer — persists to MongoDB
   const answerQuestion = async (classId, questionId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/questions/${questionId}/answer`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/questions/${questionId}/answer`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -813,7 +813,7 @@ export function AppProvider({ children }) {
   // RF-11: Attention Checks
   const launchAttentionCheck = async (classId, timeoutSecs = 30) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/attention-check`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ timeoutSecs }),
@@ -831,7 +831,7 @@ export function AppProvider({ children }) {
 
   const respondAttentionCheck = async (classId, checkId, userId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check/${checkId}/respond`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/attention-check/${checkId}/respond`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userId }),
@@ -848,7 +848,7 @@ export function AppProvider({ children }) {
   }
   const completeAttentionCheck = async (classId, checkId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/${classId}/attention-check/${checkId}/complete`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/${classId}/attention-check/${checkId}/complete`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
       })
@@ -867,7 +867,7 @@ export function AppProvider({ children }) {
   const addCourseContent = async (courseId, formData) => {
     try {
       const dbId = courseId.toString();
-      const res = await fetch(`http://localhost:3001/api/courses/${dbId}/contents`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${dbId}/contents`, {
         method: 'POST',
         body: formData
       });
@@ -886,7 +886,7 @@ export function AppProvider({ children }) {
   const deleteCourseContent = async (courseId, contentId) => {
     try {
       const dbId = courseId.toString();
-      const res = await fetch(`http://localhost:3001/api/courses/${dbId}/contents/${contentId}`, {
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/${dbId}/contents/${contentId}`, {
         method: 'DELETE'
       });
       if (!res.ok) {
@@ -908,7 +908,7 @@ export function AppProvider({ children }) {
   // RF-09: Grades
   const saveGrade = async (gradeData) => {
     try {
-      const res = await fetch('http://localhost:3001/api/grades', {
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/grades', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(gradeData),
@@ -938,7 +938,7 @@ export function AppProvider({ children }) {
 
   const fetchGradesByCourse = async (courseId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/grades/course/${courseId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/grades/course/${courseId}`);
       const json = await res.json();
       if (res.ok) {
         setGrades(prev => {
@@ -956,7 +956,7 @@ export function AppProvider({ children }) {
 
   const fetchGradesByStudent = async (studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/grades/student/${studentId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/grades/student/${studentId}`);
       if (res.ok) {
         showIndexInsight(res.headers.get('X-DB-Optimization'));
         const json = await res.json();
@@ -974,7 +974,7 @@ export function AppProvider({ children }) {
 
   const fetchClassesByCourse = async (courseId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/course/${courseId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/course/${courseId}`);
       if (res.ok) {
         showIndexInsight(res.headers.get('X-DB-Optimization'));
         const json = await res.json();
@@ -993,7 +993,7 @@ export function AppProvider({ children }) {
   // ── INDEX-OPTIMIZED FETCH FUNCTIONS ────────────────────────
   const fetchCoursesAdvanced = async (category, estado) => {
     try {
-      let url = 'http://localhost:3001/api/courses?';
+      let url = (import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/courses?';
       if (category) url += `category=${encodeURIComponent(category)}&`;
       if (estado) url += `estado=${encodeURIComponent(estado)}`;
       
@@ -1011,7 +1011,7 @@ export function AppProvider({ children }) {
 
   const fetchCoursesByStudent = async (studentId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/courses/student/${studentId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/courses/student/${studentId}`);
       if (res.ok) {
         showIndexInsight(res.headers.get('X-DB-Optimization'));
         return await res.json();
@@ -1025,7 +1025,7 @@ export function AppProvider({ children }) {
 
   const fetchActiveClassesByCourse = async (courseId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/course/${courseId}?isActive=true`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/course/${courseId}?isActive=true`);
       if (res.ok) {
         // Mongoose might return X-DB-Optimization header if index was hit
         showIndexInsight(res.headers.get('X-DB-Optimization'));
@@ -1040,7 +1040,7 @@ export function AppProvider({ children }) {
 
   const fetchParticipantHistory = async (userId) => {
     try {
-      const res = await fetch(`http://localhost:3001/api/classes/participant/${userId}`);
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/classes/participant/${userId}`);
       if (res.ok) {
         showIndexInsight(res.headers.get('X-DB-Optimization'));
         return await res.json();

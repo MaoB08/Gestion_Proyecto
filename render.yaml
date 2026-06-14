@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: gestion-proyecto-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Configura manualmente en el panel de Render → Environment:
+      # MONGO_URI     = tu URI de MongoDB Atlas
+      # GEMINI_API_KEY = tu API key de Gemini
+      # CORS_ORIGIN   = https://tu-app.vercel.app,http://localhost:5173

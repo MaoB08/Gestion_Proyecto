@@ -22,12 +22,12 @@ export default function Sidebar() {
   // Fetch pending account registration count for the admin badge
   useEffect(() => {
     if (currentUser?.role !== 'admin') return
-    fetch('http://localhost:3001/api/students/pending')
+    fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/students/pending')
       .then(r => r.ok ? r.json() : [])
       .then(data => setRegPendingCount(Array.isArray(data) ? data.length : 0))
       .catch(() => {})
 
-    fetch('http://localhost:3001/api/pqrs/stats')
+    fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/pqrs/stats')
       .then(r => r.ok ? r.json() : null)
       .then(data => { if (data) setPqrsPendingCount(data.pendientes || 0) })
       .catch(() => {})

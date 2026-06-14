@@ -43,7 +43,7 @@ export default function EnrollmentRequestsPage() {
   // ── Fetch registration requests ──────────────────────────────────────────
   const fetchRegPending = useCallback(async () => {
     try {
-      const res = await fetch('http://localhost:3001/api/students/pending')
+      const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/students/pending')
       if (res.ok) {
         const data = await res.json()
         setRegStudents(data)
@@ -95,7 +95,7 @@ export default function EnrollmentRequestsPage() {
   const onApproveReg = async (student) => {
     setActionLoading(true)
     try {
-      const res = await fetch(`http://localhost:3001/api/students/${student._id}/approve`, { method: 'PUT' })
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/students/${student._id}/approve`, { method: 'PUT' })
       if (!res.ok) throw new Error()
       setRegStudents(prev => prev.filter(s => s._id !== student._id))
       setModal(null)
@@ -112,7 +112,7 @@ export default function EnrollmentRequestsPage() {
     if (!selectedReg) return
     setActionLoading(true)
     try {
-      const res = await fetch(`http://localhost:3001/api/students/${selectedReg._id}`, { method: 'DELETE' })
+      const res = await fetch(`${import.meta.env.VITE_API_URL || "http://localhost:3001"}/api/students/${selectedReg._id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setRegStudents(prev => prev.filter(s => s._id !== selectedReg._id))
       setModal(null)

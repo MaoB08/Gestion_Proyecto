@@ -15,9 +15,21 @@ const classReportRoutes   = require('./routes/classReportRoutes');
 const app = express();
 
 // ── Middleware ────────────────────────────────────────────────────────────────
-app.use(cors({ 
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
-  exposedHeaders: ['X-DB-Optimization']
+// CORS_ORIGIN acepta múltiples orígenes separados por coma
+// Ej: "https://mi-app.vercel.app,http://localhost:5173"
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : ['http://localhost:5173'];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Permitir requests sin origin (Postman, curl, server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin '${origin}' not allowed`));
+  },
+  credentials: true,
+  exposedHeaders: ['X-DB-Optimization'],
 }));
 app.use(express.json());
 

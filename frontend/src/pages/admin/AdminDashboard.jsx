@@ -157,7 +157,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const res = await fetch('http://localhost:3001/api/students/stats')
+        const res = await fetch((import.meta.env.VITE_API_URL || 'http://localhost:3001') + '/api/students/stats')
         if (res.ok) {
           const data = await res.json()
           setStudentStats(data)
