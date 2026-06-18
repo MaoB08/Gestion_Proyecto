@@ -44,6 +44,7 @@ router.post('/register', async (req, res) => {
       clave:          hashedClave,
       sexo,
       institucion:    institucion.trim(),
+      location:       req.body.location || null,
     });
 
     // Return without exposing the hashed password

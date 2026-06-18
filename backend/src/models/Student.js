@@ -93,11 +93,11 @@ const StudentSchema = new mongoose.Schema({
     type: {
       type: String,
       enum: ['Point'],
-      default: 'Point',
     },
     coordinates: {
       type: [Number], // [longitude, latitude]
-    }
+    },
+    default: null
   },
 
   createdAt: {
@@ -106,7 +106,21 @@ const StudentSchema = new mongoose.Schema({
   },
 });
 
+// Pre-save middleware to clean up location if invalid or missing coordinates
+StudentSchema.pre('save', function(next) {
+  if (
+    !this.location ||
+    !this.location.coordinates ||
+    !Array.isArray(this.location.coordinates) ||
+    this.location.coordinates.length < 2
+  ) {
+    this.location = null;
+  }
+  next();
+});
+
 // Optionally we can add a 2dsphere index if needed for querying by location
 StudentSchema.index({ location: '2dsphere' });
 
 module.exports = mongoose.model('Student', StudentSchema);
+
