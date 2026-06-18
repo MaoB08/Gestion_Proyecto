@@ -116,8 +116,12 @@ async function sendConfirmacionPQRS(email, pqrs) {
     });
 
     console.log(`📧 Confirmación PQRS enviada a ${email}`);
-    if (nodemailer.getTestMessageUrl(info)) {
-      console.log('🔗 Preview URL (Ethereal):', nodemailer.getTestMessageUrl(info));
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log('\n========================================================================');
+      console.log('🔗 LINK DE PRUEBAS DEL EMAIL (Ethereal):');
+      console.log(`👉 ${previewUrl} 👈`);
+      console.log('========================================================================\n');
     }
     return true;
   } catch (err) {
@@ -211,8 +215,12 @@ async function sendRespuestaPQRS(email, pqrs, respuesta, pdfPath) {
     });
 
     console.log(`📧 Respuesta PQRS enviada a ${email}`);
-    if (nodemailer.getTestMessageUrl(info)) {
-      console.log('🔗 Preview URL (Ethereal):', nodemailer.getTestMessageUrl(info));
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log('\n========================================================================');
+      console.log('🔗 LINK DE PRUEBAS DEL EMAIL (Ethereal):');
+      console.log(`👉 ${previewUrl} 👈`);
+      console.log('========================================================================\n');
     }
     return true;
   } catch (err) {
