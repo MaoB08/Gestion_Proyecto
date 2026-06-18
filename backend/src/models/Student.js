@@ -1,5 +1,18 @@
 const mongoose = require('mongoose');
 
+// GeoJSON Point Sub-Schema
+const PointSchema = new mongoose.Schema({
+  type: {
+    type: String,
+    enum: ['Point'],
+    required: true
+  },
+  coordinates: {
+    type: [Number],
+    required: true
+  }
+}, { _id: false });
+
 // ── Student Schema (RF-01) ─────────────────────────────────────────────────────
 const StudentSchema = new mongoose.Schema({
 
@@ -90,13 +103,7 @@ const StudentSchema = new mongoose.Schema({
 
   // GeoJSON location point for tracking student location at login
   location: {
-    type: {
-      type: String,
-      enum: ['Point'],
-    },
-    coordinates: {
-      type: [Number], // [longitude, latitude]
-    },
+    type: PointSchema,
     default: null
   },
 
